@@ -204,3 +204,20 @@ body.desk #toast { bottom: 40px; }
 .photo { width: 100%; height: 100%; display: block; border-radius: 50%; object-fit: cover; object-position: 50% 30%; border: 3px solid #fffdf4; box-shadow: 0 0 0 3px #2f7a46; background: #d6eedb; }
 #titlePortrait .photo { border-width: 5px; box-shadow: 0 0 0 4px #2f7a46, 0 8px 20px rgba(0,0,0,.25); }
 .finalPortrait { height: 110px; }
+
+/* ---------- mundo vivo ---------- */
+.season { pointer-events: auto; display: flex; align-items: center; gap: 6px; border: 0; background: rgba(255, 255, 255, .12); color: #fff; border-radius: 9px; padding: 3px 6px; margin-top: 2px; font-size: 13px; text-align: left; }
+.season small { flex: 1; font-size: 11px; opacity: .9; white-space: nowrap; }
+.treesMini { font-size: 12px; white-space: nowrap; }
+.treesMini b { margin-left: 2px; }
+#btnAgenda.alert { animation: alertPulse 1s infinite; }
+@keyframes alertPulse { 0%, 100% { background: #fffdf4; } 50% { background: #ffb08a; } }
+.task.urgent { background: #fff0e8; border-radius: 10px; padding-left: 6px; padding-right: 6px; }
+.relGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; }
+.relGrid div { background: #f6f1e2; border-radius: 12px; padding: 6px 4px; display: flex; flex-direction: column; font-size: 16px; }
+.relGrid b { font-size: 18px; }
+.relGrid span { font-size: 10.5px; color: #6a7a6e; }
+.final h3 { margin: 4px 0 8px; color: #3a4a3e; }
+.modal textarea { width: 100%; border: 2px solid #e6dcc0; border-radius: 10px; padding: 8px; font: 12px monospace; resize: vertical; -webkit-user-select: text; user-select: text; }
+.btn.danger { color: #a8321e; }
+.box.small { font-size: 13px; margin: 10px 0; }

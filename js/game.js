@@ -131,8 +131,9 @@ function genMap() {
     set(x, y, (t === T.RIVER || t === T.LAKE || t === T.BRIDGE) ? T.BRIDGE : T.ROAD);
   });
   // áreas de plantio sempre caminháveis
-  for (const p of PROCESSOS) {
-    const a = { x0: p.plots.x - 1, y0: p.plots.y - 1, x1: p.plots.x + 7, y1: p.plots.y + 4 };
+  const plotSrc = PROCESSOS.map(p => ({ id: p.id, x: p.plots.x, y: p.plots.y })).concat(Object.values(GEN_SPOTS));
+  for (const p of plotSrc) {
+    const a = { x0: p.x - 1, y0: p.y - 1, x1: p.x + 7, y1: p.y + 4 };
     plotAreas.push(a);
     for (let y = a.y0; y <= a.y1; y++) for (let x = a.x0; x <= a.x1; x++) {
       const t = get(x, y);
@@ -270,7 +271,8 @@ function placeObjects(get) {
     if (!spr) continue;
     const px = x * TILE + 3 + Math.floor(rng() * 10), py = y * TILE + 10 + Math.floor(rng() * 6);
     if (colliderHit(px, py)) continue;
-    decos.push({ spr, x: px - (spr.width >> 1), y: py - spr.height, by: py });
+    const dry = DECOR.caatinga.includes(spr) || spr === DECOR.tufo;
+    decos.push({ spr, x: px - (spr.width >> 1), y: py - spr.height, by: py, tx: Math.floor(px / TILE), ty: Math.floor((py - 1) / TILE), dry });
   }
 }
 
@@ -279,14 +281,20 @@ function placeObjects(get) {
 // =====================================================================
 const SAVE_KEY = 'marina-ceara-v1';
 let S;
+const BAK_KEY = 'marina-ceara-bak';
 function newState() {
   const procs = {};
-  const rng = Math.random;
-  for (const p of PROCESSOS) procs[p.id] = { status: 'pendente', choice: null, visited: false, planted: [], errors: 0, done: false, order: shuffle([0, 1, 2], rng) };
-  return { stats: { amb: 50, eco: 50, soc: 50 }, procs, unlocked: 2, quizDone: false, introDone: false, trees: 0, ended: false, player: { x: 47 * TILE + 8, y: 19 * TILE + 10 }, talked: {} };
+  for (const p of PROCESSOS) procs[p.id] = newProcState();
+  return Object.assign({ stats: { amb: 50, eco: 50, soc: 50 }, procs, unlocked: 2, quizDone: false, introDone: false, trees: 0, ended: false, player: { x: 47 * TILE + 8, y: 19 * TILE + 10 }, talked: {} }, mundoDefaults());
 }
-function save() { try { S.player = { x: P.x, y: P.y }; localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* sem armazenamento */ } }
-function load() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); return s && s.procs ? s : null; } catch (e) { return null; } }
+function save() { try { if (!S) return; S.player = { x: P.x, y: P.y }; S.lastSeen = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* sem armazenamento */ } }
+function readSave(key) { try { const s = JSON.parse(localStorage.getItem(key)); return s && s.procs && s.stats ? migrate(s) : null; } catch (e) { return null; } }
+// lê o save (com versão e migração); se estiver corrompido, usa a cópia de segurança
+function load() {
+  const s = readSave(SAVE_KEY) || readSave(BAK_KEY);
+  if (s) try { localStorage.setItem(BAK_KEY, JSON.stringify(s)); } catch (e) { }
+  return s;
+}
 
 // =====================================================================
 //  Jogadora
@@ -329,6 +337,7 @@ addEventListener('keydown', e => {
   if ([' ', 'e', 'enter'].includes(k)) { e.preventDefault(); if ($('#title').hidden) onAction(); }
   if (k === 'escape') closeModal();
   if (k === 'm' && !uiBusy()) openMap();
+  if (k === 'g' && !uiBusy()) openMenu();
   if ((k === 'j' || k === 'tab') && !uiBusy()) { e.preventDefault(); openAgenda(); }
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
@@ -432,9 +441,13 @@ function updateHUD() {
     bar.style.background = v < 35 ? '#e2553a' : v < 60 ? '#f2c230' : '#4fbf5a';
     $('#val-' + k).textContent = v;
   }
-  $('#treeCount').textContent = S.trees;
+  $('#treeCount').textContent = countVivas();
+  const est = estacao();
+  $('#seasonIcon').textContent = est.icon;
+  $('#seasonTxt').textContent = `${est.nome.split(' •')[0]} • ${MESES[mesAtual() - 1]} • Ano ${S.year}`;
   const pend = tasks().filter(t => !t.done).length;
   $('#agendaBadge').textContent = pend; $('#agendaBadge').hidden = pend === 0;
+  $('#btnAgenda').classList.toggle('alert', S.fires.length > 0);
 }
 function addStats(fx) {
   for (const k in fx) S.stats[k] = clamp(S.stats[k] + fx[k], 0, 100);
@@ -450,11 +463,11 @@ function floatText(txt) {
 // =====================================================================
 //  Lógica dos processos
 // =====================================================================
-const procById = id => PROCESSOS.find(p => p.id === id);
+const procById = id => PROCESSOS.find(p => p.id === id) || S.gen.find(p => p.id === id);
 const regionById = id => REGIONS.find(r => r.id === id);
 const AMBIENTE = { coco: 'Manguezal (APP)', adutora: 'Caatinga', eolico: 'Restinga e dunas', resort: 'Restinga e falésias', irrigacao: 'Mata ciliar do rio Jaguaribe', mineracao: 'Matas e cerrado da Chapada do Araripe', solar: 'Caatinga (mata ciliar de riacho)' };
 
-function unlockedProcs() { return PROCESSOS.slice(0, S.unlocked); }
+function unlockedProcs() { return PROCESSOS.slice(0, S.unlocked).concat(S.gen); }
 function compOf(p) { const st = S.procs[p.id]; return st.choice == null ? null : p.opcoes[st.choice].comp; }
 function plotPos(p, i) { return { x: (p.plots.x + (i % 5) * 1.3) * TILE + 8, y: (p.plots.y + Math.floor(i / 5) * 1.7) * TILE + 12 }; }
 function plantedCount(p) { return S.procs[p.id].planted.filter(Boolean).length; }
@@ -468,27 +481,43 @@ function tasks() {
       out.push({ icon: '📄', txt: `Analisar processo nº ${p.numero}: ${p.titulo}`, where: 'Sede da SEMA, Fortaleza', go: { x: 47 * TILE + 8, y: 19 * TILE + 10 }, done: false });
     } else {
       const c = compOf(p);
-      if (c) {
-        const k = plantedCount(p);
-        out.push({ icon: '🌱', txt: `Compensação: plantar mudas nativas (${k}/${c.n})`, where: reg.name, go: { x: p.plots.x * TILE + 40, y: (p.plots.y - 1) * TILE + 12 }, done: k >= c.n });
-      } else out.push({ icon: '✔️', txt: `Processo nº ${p.numero}: parecer assinado`, where: reg.name, done: true });
+      if (c && !st.done) {
+        const k = plantedCount(p), go = { x: p.plots.x * TILE + 40, y: (p.plots.y - 1) * TILE + 12 };
+        if (k < c.n) out.push({ icon: '🌱', txt: `Compensação: plantar mudas nativas (${k}/${c.n})`, where: reg.name, go, done: false });
+        else {
+          const adultas = st.planted.filter(pl => pl && stageOf(pl) >= 2).length;
+          out.push({ icon: needsWater(p) ? '💧' : '🌿', txt: `${needsWater(p) ? 'Regar e acompanhar' : 'Acompanhar'} as mudas até virarem árvores (${adultas}/${c.n})`, where: reg.name, go, done: false });
+        }
+      } else if (!p.gen && S.year === 1) out.push({ icon: '✔️', txt: `Processo nº ${p.numero}: ${c ? 'compensação cumprida' : 'parecer assinado'}`, where: reg.name, done: true });
     }
   }
+  tasksMundo(out);
   if (!S.quizDone) out.push({ icon: '🎓', txt: 'Conversar com a Profa. Iracema na UFC', where: 'Fortaleza', go: { x: 41 * TILE + 8, y: 22 * TILE + 8 }, done: false, optional: true });
   return out;
 }
 
 function openSema() {
-  const list = unlockedProcs().map(p => {
+  let arquivados = 0;
+  const all = unlockedProcs();
+  const list = all.filter(p => {
+    const st = S.procs[p.id], c = compOf(p);
+    const ativo = st.status === 'pendente' || (c && !st.done);
+    if (!ativo && (S.year > 1 || p.gen)) { arquivados++; return false; }
+    return true;
+  }).sort((a, b) => (S.procs[b.id].status === 'pendente') - (S.procs[a.id].status === 'pendente')).map(p => {
     const st = S.procs[p.id], reg = regionById(p.region), c = compOf(p);
     let status, btn = '';
     if (st.status === 'pendente') { status = `<span class="tag warn">Aguardando parecer</span>`; btn = `<button class="btn" data-proc="${p.id}">Analisar</button>`; }
     else if (c && plantedCount(p) < c.n) status = `<span class="tag ok">Parecer assinado</span> <span class="tag">🌱 ${plantedCount(p)}/${c.n} mudas</span>`;
+    else if (c && !st.done) status = `<span class="tag ok">Parecer assinado</span> <span class="tag">🌿 mudas crescendo</span>`;
     else status = `<span class="tag ok">Concluído ✔</span>`;
     return `<div class="card"><div class="cardHead"><b>Nº ${p.numero}</b><span>${reg.name}</span></div><div class="cardTitle">${p.titulo}</div><div class="cardFoot">${status}${btn}</div></div>`;
   }).join('');
-  const more = S.unlocked < PROCESSOS.length ? `<p class="muted">📥 Novos processos chegam conforme você emite pareceres.</p>` : '';
-  const m = openModal(`<div class="mHead"><h2>🏛️ Mesa de processos • SEMA</h2><button class="x" data-close>✕</button></div>${list}${more}`);
+  const more = S.unlocked < PROCESSOS.length ? `<p class="muted">📥 Novos processos chegam conforme você emite pareceres.</p>`
+    : pendentes() ? '' : `<p class="muted">📥 Nenhum processo na mesa agora. Novos pedidos de licença chegam a todo momento.</p>`;
+  const arq = arquivados ? `<p class="muted small">🗄️ ${arquivados} processo${arquivados > 1 ? 's' : ''} no arquivo.</p>` : '';
+  const m = openModal(`<div class="mHead"><h2>🏛️ Mesa de processos • SEMA</h2><button class="x" data-close>✕</button></div>
+    <p class="muted small">Ano ${S.year} de gestão • ${CARGOS[S.cargo]}</p>${list}${more}${arq}`);
   m.querySelectorAll('[data-proc]').forEach(b => b.addEventListener('click', () => openProcesso(procById(b.dataset.proc))));
 }
 
@@ -504,7 +533,7 @@ function openProcesso(p) {
     <div class="kv"><span>Requerente</span><b>${p.requerente}</b></div>
     <div class="kv"><span>Tipo</span><b>${p.tipo}</b></div>
     <div class="kv"><span>Local</span><b>${reg.name} (${reg.sub})</b></div>
-    <div class="kv"><span>Ambiente</span><b>${AMBIENTE[p.id]}</b></div>
+    <div class="kv"><span>Ambiente</span><b>${ambOf(p)}</b></div>
     <p>${p.resumo}</p>${vist}
     <h3>Qual a sua conclusão técnica?</h3>${opts}
     <div class="row"><button class="btn ghost" id="back">Voltar</button><button class="btn" id="go" disabled>Redigir parecer ✍️</button></div>`);
@@ -528,7 +557,7 @@ function openParecer(p, idx) {
       <p><b>4. Compensação ambiental.</b> ${comp}</p>
       <p class="right">Fortaleza, ${hoje}.</p>
       <div class="sigWrap"><canvas id="sig"></canvas><div class="sigHint">Assine aqui com o dedo</div><div class="stamp" id="stamp">ASSINADO</div></div>
-      <div class="sigLine">Marina • Analista Ambiental</div>
+      <div class="sigLine">Marina • ${CARGOS[S.cargo]}</div>
     </div>
     <div class="row"><button class="btn ghost" id="clr">Limpar</button><button class="btn ghost" id="back">Voltar</button><button class="btn" id="sign" disabled>Assinar parecer</button></div>`, 'paperModal');
   const cv = m.querySelector('#sig'), g = cv.getContext('2d');
@@ -558,25 +587,28 @@ function openParecer(p, idx) {
 function finishDecision(p, idx) {
   const st = S.procs[p.id], op = p.opcoes[idx], reg = regionById(p.region);
   st.choice = idx;
-  st.status = op.comp ? 'deferido' : (op.txt.startsWith('Indeferir') ? 'indeferido' : 'exigencia');
+  st.status = op.comp || ['cond', 'ruim', 'simples'].includes(op.k) ? 'deferido' : (op.txt.startsWith('Indeferir') ? 'indeferido' : 'exigencia');
   const fx = Object.assign({}, op.fx);
   if (st.visited) { fx.soc = (fx.soc || 0) + 3; fx.amb = (fx.amb || 0) + 2; }
   addStats(fx);
-  const score = op.fx.amb + op.fx.eco + op.fx.soc;
-  const good = score > 10;
+  const good = isGood(p, idx);
   good ? sfx.ok() : sfx.bad();
   const before = S.unlocked;
   S.unlocked = Math.min(PROCESSOS.length, S.unlocked + 1);
+  S.decTotal++; S.ys.dec++;
+  if (S.unlocked >= PROCESSOS.length) S.nextProcAt = Math.min(S.nextProcAt, S.play + 25);
+  agendarRetorno(p, idx);
   save();
   const lines = [
     { who: 'sistema', text: (good ? '✅ ' : '⚠️ ') + op.fb },
   ];
   if (st.visited) lines.push({ who: 'sistema', text: '🔎 Bônus: seu parecer estava fundamentado em vistoria de campo (+3 🤝, +2 🌳).' });
   lines.push({ who: 'sistema', text: '💡 Você sabia? ' + p.fato });
-  if (op.comp) lines.push({ who: 'marina', text: `Agora é comigo: preciso plantar ${op.comp.n} mudas nativas em ${reg.name}. Já marquei as covas no mapa! 🌱` });
+  if (op.comp) lines.push({ who: 'marina', text: `Agora é comigo: preciso plantar ${op.comp.n} mudas nativas em ${reg.name} e cuidar delas até virarem árvores. Já marquei as covas no mapa! 🌱` });
+  if (st.status === 'deferido') lines.push({ who: 'sistema', text: '⚖️ Daqui a um tempo, a SEMA vai fiscalizar se as condicionantes desta licença estão sendo cumpridas.' });
   say(lines, () => {
     if (S.unlocked > before) { toast('📥 Novo processo chegou na mesa da SEMA!'); }
-    updateHUD(); checkEnd();
+    updateHUD(); checkAno();
   });
 }
 
@@ -597,7 +629,7 @@ function openPlantio(p, i) {
   const opts = shuffle(goods.concat(bads), rng);
   const m = openModal(`
     <div class="mHead"><h2>🌱 Qual muda plantar aqui?</h2><button class="x" data-close>✕</button></div>
-    <p class="muted">${reg.name} • Ambiente: <b>${AMBIENTE[p.id]}</b> • Cova ${plantedCount(p) + 1} de ${c.n}</p>
+    <p class="muted">${reg.name} • Ambiente: <b>${ambOf(p)}</b> • Cova ${plantedCount(p) + 1} de ${c.n}</p>
     <div class="species">${opts.map(id => `<button class="sp" data-sp="${id}"><b>${SPECIES[id].name}</b><i>${SPECIES[id].sci}</i></button>`).join('')}</div>
     <p class="muted small">Dica: compensação ambiental usa espécies <b>nativas</b> do ambiente afetado.</p>`);
   m.querySelectorAll('[data-sp]').forEach(b => b.addEventListener('click', () => {
@@ -608,20 +640,18 @@ function openPlantio(p, i) {
       say([{ who: 'sistema', text: `❌ ${sp.name} (${sp.sci}) não serve aqui. ${sp.info}` }, { who: 'marina', text: 'Opa! Vou escolher uma nativa desse ambiente.' }]);
       return;
     }
-    st.planted[i] = { sp: id, t: Date.now() };
-    S.trees++; sfx.plant(); spawnLeaves(plotPos(p, i));
+    st.planted[i] = { sp: id, t: Date.now(), g: 0, w: 1, d: 0 };
+    S.trees++; S.ys.mudas++; sfx.plant(); spawnLeaves(plotPos(p, i));
     toast(`🌱 <b>${sp.name}</b> plantado! ${sp.info}`, 4200);
-    if (plantedCount(p) >= c.n && !st.done) {
-      st.done = true;
-      const bonus = st.errors === 0 ? 6 : 3;
-      setTimeout(() => {
-        addStats({ amb: bonus, soc: 2 }); sfx.ok();
-        say([
-          { who: 'sistema', text: `🌳 Compensação concluída em ${reg.name}! Termo de Compromisso cumprido${st.errors === 0 ? ' sem nenhum erro de espécie. Excelente!' : '.'}` },
-          { who: 'marina', text: 'As mudas vão crescer aos poucos. Daqui a pouco volto pra ver! 💚' },
-          { who: 'sistema', text: '💡 ' + DICAS_PLANTIO[Math.floor(Math.random() * DICAS_PLANTIO.length)] },
-        ], checkEnd);
-      }, 700);
+    if (plantedCount(p) >= c.n && !st.plantedAll) {
+      st.plantedAll = true;
+      setTimeout(() => queueSay([
+        { who: 'marina', text: `Todas as ${c.n} mudas plantadas em ${reg.name}! 🌱` },
+        { who: 'sistema', text: estacao().sede
+          ? `${estacao().icon} Estamos em ${estacao().nome}: as mudas precisam de rega até virarem árvores. Fique de olho no 💧. Muda que morre volta a ser cova para replantio.`
+          : '🌧️ É quadra chuvosa: a chuva rega as mudas. Agora é acompanhar até virarem árvores.' },
+        { who: 'sistema', text: '📏 A compensação só é cumprida quando as árvores sobrevivem. É a “taxa de sobrevivência” que os órgãos ambientais cobram.' },
+      ], updateHUD), 600);
     }
     save(); updateHUD();
   }));
@@ -640,39 +670,11 @@ function openQuiz(npc) {
   }));
 }
 
-function checkEnd() {
-  if (S.ended) return;
-  const all = PROCESSOS.every(p => { const st = S.procs[p.id]; if (st.status === 'pendente') return false; const c = compOf(p); return !c || plantedCount(p) >= c.n; });
-  if (!all) return;
-  S.ended = true; save();
-  setTimeout(openFinal, 600);
-}
-
-function openFinal() {
-  const { amb, eco, soc } = S.stats;
-  const avg = (amb + eco + soc) / 3, min = Math.min(amb, eco, soc);
-  let title, txt;
-  if (min >= 55 && avg >= 62) { title = '🏅 Guardiã do Desenvolvimento Sustentável'; txt = 'Você equilibrou natureza, economia e pessoas. É exatamente isso que a economia ecológica propõe: a economia funcionando dentro dos limites do ecossistema, com justiça social.'; }
-  else if (amb < 40) { title = '🏗️ Desenvolvimento a qualquer custo'; txt = 'A economia cresceu, mas o capital natural do Ceará pagou a conta. Para a economia ecológica, perdas irreversíveis (espécies, nascentes, mangues) não se compensam só com dinheiro.'; }
-  else if (eco < 40 || soc < 40) { title = '🛑 Conservação sem diálogo'; txt = 'A natureza foi protegida, mas as pessoas ficaram sem água, energia ou emprego. Sustentabilidade forte também precisa cuidar do bem-estar humano.'; }
-  else { title = '🌿 Analista em formação'; txt = 'Bom trabalho! Algumas decisões podiam equilibrar melhor os três pilares. Que tal jogar de novo e testar outros caminhos?'; }
-  openModal(`<div class="final">
-    <div class="finalPortrait">${MARINA_PHOTO}</div>
-    <h2>${title}</h2>
-    <div class="finalStats"><div>🌳<b>${Math.round(amb)}</b><span>Ambiente</span></div><div>💰<b>${Math.round(eco)}</b><span>Economia</span></div><div>🤝<b>${Math.round(soc)}</b><span>Sociedade</span></div><div>🌱<b>${S.trees}</b><span>Mudas</span></div></div>
-    <p>${txt}</p>
-    <p class="muted">Você pode continuar explorando o Ceará e ver suas árvores crescerem.</p>
-    <p class="love">Feito com carinho para a Marina 💚</p>
-    <div class="row"><button class="btn ghost" id="again">Jogar de novo</button><button class="btn" data-close>Continuar explorando</button></div>
-  </div>`);
-  $('#again').onclick = () => { closeModal(); resetGame(); };
-}
-
 // ---------- agenda e mapa ----------
 function openAgenda() {
   const ts = tasks();
   const m = openModal(`<div class="mHead"><h2>📋 Agenda da Marina</h2><button class="x" data-close>✕</button></div>
-    ${ts.map((t, i) => `<div class="task ${t.done ? 'done' : ''}"><span class="ti">${t.done ? '✔️' : t.icon}</span><div><div>${t.txt}${t.optional ? ' <small class="muted">(opcional)</small>' : ''}</div><small class="muted">📍 ${t.where}</small></div>${!t.done && t.go ? `<button class="btn sm" data-go="${i}">Ir 🚙</button>` : ''}</div>`).join('')}
+    ${ts.map((t, i) => `<div class="task ${t.done ? 'done' : ''} ${t.urgent ? 'urgent' : ''}"><span class="ti">${t.done ? '✔️' : t.icon}</span><div><div>${t.txt}${t.optional ? ' <small class="muted">(opcional)</small>' : ''}</div><small class="muted">📍 ${t.where}</small></div>${!t.done && t.go ? `<button class="btn sm" data-go="${i}">Ir 🚙</button>` : ''}</div>`).join('')}
     <div class="legend"><b>Indicadores:</b> 🌳 Ambiente • 💰 Economia • 🤝 Sociedade. Na economia ecológica, o objetivo é manter os três saudáveis ao mesmo tempo.</div>`);
   m.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => { const t = ts[+b.dataset.go]; closeModal(); travelTo(t.go.x, t.go.y); }));
 }
@@ -690,7 +692,7 @@ function openMap() {
     <p class="muted small">Toque numa região para viajar de viatura 🚙</p>
     <div class="mapBox"><canvas id="mini"></canvas></div>
     <div class="chips">${REGIONS.map(r => `<button class="chip" data-r="${r.id}">${r.name}</button>`).join('')}</div>
-    <div class="legend small">🟡 vistoria • 🟢 plantio • 🔵 processos na SEMA • 🩷 Marina</div>`, 'mapModal');
+    <div class="legend small">🟡 vistoria • 🟢 plantio • 💧 rega • 🔵 SEMA • 🔴 fogo • 🟠 ocorrência • 🟣 fiscalização • 🩷 Marina</div>`, 'mapModal');
   const cv = m.querySelector('#mini'), g = cv.getContext('2d');
   cv.width = W * 4; cv.height = H * 4;
   g.imageSmoothingEnabled = false; g.drawImage(miniCanvas, 0, 0);
@@ -702,6 +704,7 @@ function openMap() {
     if (st.status === 'pendente' && !st.visited) dot(p.site.x * 4, p.site.y * 4, '#f2c230');
     const c = compOf(p); if (c && plantedCount(p) < c.n) dot(p.plots.x * 4 + 8, p.plots.y * 4, '#3fbf5a');
   }
+  mundoMapMarkers(dot);
   if (unlockedProcs().some(p => S.procs[p.id].status === 'pendente')) dot(47 * 4, 18 * 4, '#2a6ad8');
   dot(P.x / TILE * 4, P.y / TILE * 4, '#ff4f9a', 6);
   cv.addEventListener('click', e => {
@@ -731,8 +734,9 @@ function interactables() {
     const st = S.procs[p.id];
     if (st.status === 'pendente' && !st.visited) out.push({ x: p.site.x * TILE + 8, y: p.site.y * TILE + 12, label: 'Vistoriar', icon: '🔎', fn: () => doVistoria(p) });
     const c = compOf(p);
-    if (c) for (let i = 0; i < c.n; i++) if (!st.planted[i]) { const pp = plotPos(p, i); out.push({ x: pp.x, y: pp.y, label: 'Plantar', icon: '🌱', fn: () => openPlantio(p, i) }); }
+    if (c && !st.archived) for (let i = 0; i < c.n; i++) if (!st.planted[i]) { const pp = plotPos(p, i); out.push({ x: pp.x, y: pp.y, label: 'Plantar', icon: '🌱', fn: () => openPlantio(p, i) }); }
   }
+  mundoInteractables(out);
   return out;
 }
 function talkTo(n) {
@@ -815,6 +819,7 @@ function update(dt) {
     if (r) curRegion = r;
     if (Math.random() < 0.05) save();
   }
+  if ($('#title').hidden) mundoUpdate(dt);
   for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 120 * dt; p.life -= dt; if (p.life <= 0) parts.splice(i, 1); }
 }
 
@@ -842,16 +847,17 @@ function render() {
     }
   }
 
+  drawGroundMundo(tx0, ty0, tx1, ty1);
+
   // covas de plantio (no chão)
   const draws = [];
   for (const p of unlockedProcs()) {
     const c = compOf(p), st = S.procs[p.id];
-    if (!c) continue;
+    if (!c || st.archived) continue;
     for (let i = 0; i < c.n; i++) {
       const pp = plotPos(p, i);
       if (st.planted[i]) {
-        const age = (Date.now() - st.planted[i].t) / 1000, stage = age < 25 ? 0 : age < 90 ? 1 : 2;
-        const spr = plantedSprite(st.planted[i].sp, stage);
+        const spr = plantDraw(st.planted[i]);
         draws.push({ y: pp.y, f: () => ctx.drawImage(spr, Math.round(pp.x - spr.width / 2), Math.round(pp.y - spr.height + 2)) });
       } else {
         ctx.drawImage(DECOR.cova, pp.x - 6, pp.y - 6);
@@ -865,7 +871,8 @@ function render() {
   }
 
   const inView = (x, y, w, h) => x + w > camX - 8 && x < camX + vw + 8 && y + h > camY - 8 && y < camY + vh + 60;
-  for (const d of decos) if (inView(d.x, d.y, d.spr.width, d.spr.height)) draws.push({ y: d.by, f: () => ctx.drawImage(d.spr, d.x, d.y) });
+  for (const d of decos) if (inView(d.x, d.y, d.spr.width, d.spr.height)) draws.push({ y: d.by, f: () => ctx.drawImage(decoSprite(d), d.x, d.y) });
+  mundoDraws(draws, inView);
   for (const o of objects) {
     if (o.turbine) {
       if (!inView(o.x - 14, o.y - 48, 28, 48)) continue;
@@ -896,11 +903,13 @@ function render() {
     const x = 47 * TILE, y = 18 * TILE - 56 + Math.sin(time * 4) * 2;
     R(ctx, x - 1, y - 6, 2, 6, '#2a6ad8'); R(ctx, x - 3, y, 6, 1, '#2a6ad8'); R(ctx, x - 2, y + 1, 4, 1, '#2a6ad8'); R(ctx, x - 1, y + 2, 2, 1, '#2a6ad8');
   }
+  drawOverMundo(inView);
   for (const p of parts) { ctx.fillStyle = p.c; ctx.globalAlpha = Math.max(0, p.life); ctx.fillRect(p.x, p.y, 2, 2); }
   ctx.globalAlpha = 1;
 
   // textos em espaço de tela
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawScreenMundo();
   const toScreen = (wx, wy) => [(wx - camX) * SCALE, (wy - camY) * SCALE];
   ctx.textAlign = 'center'; ctx.font = '600 12px system-ui, sans-serif';
   if (nearNpc && (!target || !target.npc || target.npc !== nearNpc)) {
@@ -945,6 +954,9 @@ function startGame(fresh) {
   P.x = S.player.x; P.y = S.player.y;
   const p = nearestWalkable(P.x, P.y); P.x = p.x; P.y = p.y;
   $('#title').hidden = true; $('#hud').hidden = false; $('#controls').hidden = false;
+  msgQ.length = 0; rebuildFireSet();
+  if (S.introDone) mostrarAusencia(progressoAusencia());
+  else { S.lastSeen = Date.now(); S.season = estacaoId(); }
   updateHUD();
   if (!S.introDone) {
     S.introDone = true; save();
@@ -954,6 +966,7 @@ function startGame(fresh) {
       { who: chefe, text: 'Marina! Seja bem-vinda. Tem processos de licenciamento esperando seu parecer na mesa da sede, logo ali na porta.' },
       { who: chefe, text: 'Você decide: deferir, indeferir ou pedir ajustes. Se liberar uma obra, a compensação ambiental fica com você: plantar mudas nativas no local.' },
       { who: chefe, text: 'Antes de assinar, vale fazer a vistoria em campo (os 📍 no mapa). O 📋 mostra sua agenda e o 🗺️ leva você de viatura pelo estado.' },
+      { who: chefe, text: `E fique de olho no tempo: aqui as estações seguem o calendário de verdade. Agora estamos em ${estacao().icon} ${estacao().nome}.${estacao().risco >= 0.8 ? ' É época de queimadas: quando aparecer 🔥 na agenda, corra!' : ''}` },
       { who: 'marina', text: 'Bora cuidar do Ceará! 🌵💚' },
     ], () => toast(inputMode === 'touch' ? 'Arraste à esquerda para andar • toque em <b>A</b> para interagir' : 'Setas/WASD para andar • Espaço/E para interagir • M abre o mapa', 5000));
   }
@@ -975,6 +988,11 @@ function init() {
   $('#btnContinue').onclick = () => { unlockAudio(); S = saved; startGame(false); };
   $('#btnAgenda').onclick = () => { if (!uiBusy()) openAgenda(); };
   $('#btnMap').onclick = () => { if (!uiBusy()) openMap(); };
+  $('#btnMenu').onclick = () => { if (!uiBusy()) openMenu(); };
+  $('#season').onclick = () => { if (!uiBusy()) openEstacao(); };
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { }
+  addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+  addEventListener('pagehide', save);
   $('#modalWrap').addEventListener('click', e => { if (e.target.id === 'modalWrap') closeModal(); });
   requestAnimationFrame(loop);
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
