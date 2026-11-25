@@ -1,6 +1,6 @@
 // Service worker: permite jogar offline depois do primeiro acesso.
 // Ao publicar uma nova versão, aumente o número abaixo.
-const CACHE = 'marina-ceara-v3';
+const CACHE = 'marina-ceara-v4';
 const FILES = ['./', 'index.html', 'css/style.css', 'js/data.js', 'js/data-mundo.js', 'js/mundo.js', 'js/sprites.js', 'js/game.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'assets/marina.jpg'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });

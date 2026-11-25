@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f7a46">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<title>Guia da Guardiã do Ceará</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: guia de leitura em uma coluna, no celular primeiro; blocos texto + captura alternados */
+:root {
+  --bg: #f2f4ec;
+  --surface: #ffffff;
+  --ink: #1c2a21;
+  --muted: #5b6b5f;
+  --line: #d9dfcf;
+  --green: #2f7a46;
+  --green-soft: #e2efe2;
+  --fire: #c9502a;
+  --fire-soft: #fbe6dc;
+  --water: #2d7fbf;
+  --water-soft: #e0eef8;
+  --sun: #f2c230;
+  --font-display: "Pixelify Sans", "Courier New", monospace;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #141a16; --surface: #1c241f; --ink: #e6ede5; --muted: #a2b2a6; --line: #2f3a33;
+    --green: #6cc48a; --green-soft: #1f3327; --fire: #f08a5d; --fire-soft: #3a2219; --water: #6db3ea; --water-soft: #182a38; --sun: #f2c230;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #141a16; --surface: #1c241f; --ink: #e6ede5; --muted: #a2b2a6; --line: #2f3a33;
+  --green: #6cc48a; --green-soft: #1f3327; --fire: #f08a5d; --fire-soft: #3a2219; --water: #6db3ea; --water-soft: #182a38; --sun: #f2c230;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--font-body); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 920px; margin: 0 auto; padding-block: 36px 64px; display: grid; gap: 52px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2.3rem, 7vw, 3.6rem); color: var(--green); }
+h2 { font-size: clamp(1.5rem, 4.5vw, 2rem); }
+h3 { font-size: 1.25rem; font-weight: 500; }
+p { margin: 0; max-width: 65ch; }
+a { color: var(--green); font-weight: 600; }
+.lede { font-size: 1.1rem; color: var(--muted); }
+header { display: grid; gap: 14px; }
+.kicker { font: 600 .78rem/1 var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.play { display: inline-flex; align-items: center; gap: 8px; justify-self: start; background: var(--green); color: #fff; text-decoration: none; font-weight: 700; padding: 12px 18px; border-radius: 10px; box-shadow: 0 3px 0 color-mix(in srgb, var(--green) 60%, #000); }
+.play:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+section { display: grid; gap: 22px; }
+.sec-head { display: grid; gap: 8px; border-top: 3px solid var(--ink); padding-top: 14px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 2rem 1fr; gap: 10px; align-items: start; }
+.steps li::before { content: counter(s); font: 700 1.1rem/2rem var(--font-display); text-align: center; background: var(--green-soft); color: var(--green); border-radius: 6px; }
+.mech { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 24px; align-items: start; }
+.mech.flip > .txt { order: 2; }
+.txt { display: grid; gap: 12px; }
+ul.dots { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+ul.dots li::marker { color: var(--green); }
+figure { margin: 0; display: grid; gap: 6px; }
+figure img { width: 100%; max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); display: block; }
+figcaption { font-size: .82rem; color: var(--muted); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.phone img { max-width: 250px; justify-self: center; }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ctrl { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; }
+.ctrl dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: .94rem; }
+.ctrl dt { font-weight: 600; white-space: nowrap; }
+.ctrl dd { margin: 0; color: var(--muted); }
+kbd { font: 600 .8em ui-monospace, Consolas, monospace; background: var(--bg); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; }
+.bars { display: grid; gap: 8px; }
+.bar { display: grid; grid-template-columns: 1.6rem 6.5rem 1fr; gap: 10px; align-items: baseline; }
+.bar b { font-weight: 600; }
+.bar span:last-child { color: var(--muted); font-size: .94rem; }
+.tips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.tip { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.tip h3 { font-size: 1.05rem; }
+.tip p { color: var(--muted); font-size: .94rem; }
+.callout { border-radius: 10px; padding: 12px 14px; font-size: .95rem; }
+.callout.fire { background: var(--fire-soft); }
+.callout.water { background: var(--water-soft); }
+.callout.green { background: var(--green-soft); }
+.season-strip { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; max-width: 560px; }
+.season-strip span { font: 600 .72rem/1 var(--font-body); text-align: center; padding: 8px 0 6px; border-radius: 4px; }
+.season-strip .c { background: var(--water-soft); }
+.season-strip .t { background: var(--green-soft); }
+.season-strip .s { background: var(--fire-soft); }
+.season-strip .p { background: color-mix(in srgb, var(--water-soft) 50%, var(--fire-soft)); }
+.legend-row { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .85rem; color: var(--muted); }
+.legend-row i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.career { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .9rem; }
+.career span { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.career span:last-child { border-color: var(--sun); font-weight: 600; }
+.career b { color: var(--muted); font-weight: 400; }
+footer { text-align: center; color: var(--muted); display: grid; gap: 6px; justify-items: center; }
+footer p { font-family: var(--font-display); font-size: 1.3rem; color: var(--green); }
+@media (max-width: 720px) {
+  .mech, .controls, .tips, .pair { grid-template-columns: 1fr; }
+  .mech.flip > .txt { order: 0; }
+}
+  body { margin: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  img { max-width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <span class="kicker">Guia da jogadora</span>
+    <h1>Guia da Guardiã do Ceará</h1>
+    <p class="lede">Marina, este é o seu jogo. Você é analista ambiental da SEMA e cuida do Ceará inteiro: do mangue do Cocó à Chapada do Araripe. O jogo não acaba. O estado muda com as estações de verdade, e cada decisão sua tem consequências.</p>
+    <a class="play" href="../">🌵 Abrir o jogo</a>
+  </header>
+
+  <section>
+    <div class="sec-head"><h2>Antes de começar: instale no iPhone</h2></div>
+    <ol class="steps">
+      <li><span>Abra o link do jogo no <b>Safari</b>.</span></li>
+      <li><span>Toque em <b>Compartilhar</b> (o quadrado com a setinha para cima).</span></li>
+      <li><span>Escolha <b>Adicionar à Tela de Início</b>. O jogo vira um app com ícone próprio e abre em tela cheia.</span></li>
+    </ol>
+    <p class="callout green">💾 O jogo salva sozinho. Instalado na Tela de Início, o progresso fica guardado mesmo se você passar dias sem jogar. Para ter uma cópia extra, vá em ⚙️ e toque em <b>Gerar código</b>.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Controles</h2></div>
+    <div class="controls">
+      <div class="ctrl">
+        <h3>📱 No celular</h3>
+        <dl>
+          <dt>Andar</dt><dd>arraste o dedo na metade esquerda da tela</dd>
+          <dt>Botão A</dt><dd>conversar, vistoriar, plantar, regar, apagar fogo</dd>
+          <dt>📋</dt><dd>agenda com tudo o que precisa ser feito</dd>
+          <dt>🗺️</dt><dd>mapa: toque numa região para ir de viatura</dd>
+          <dt>⚙️</dt><dd>menu, backup e relatórios</dd>
+        </dl>
+      </div>
+      <div class="ctrl">
+        <h3>💻 No computador</h3>
+        <dl>
+          <dt><kbd>WASD</kbd> ou setas</dt><dd>andar</dd>
+          <dt><kbd>Shift</kbd></dt><dd>correr</dd>
+          <dt><kbd>Espaço</kbd> / <kbd>E</kbd></dt><dd>interagir</dd>
+          <dt><kbd>J</kbd> <kbd>M</kbd> <kbd>G</kbd></dt><dd>agenda, mapa e menu</dd>
+          <dt><kbd>Esc</kbd></dt><dd>fechar janelas</dd>
+        </dl>
+      </div>
+    </div>
+    <p class="callout green">🚙 Na agenda, o botão <b>Ir</b> leva você direto para cada tarefa. Não precisa atravessar o estado a pé.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Seus três indicadores</h2></div>
+    <p>No canto da tela ficam três barras. Toda escolha mexe nelas. A economia ecológica pede que as três fiquem saudáveis ao mesmo tempo.</p>
+    <div class="bars">
+      <div class="bar"><span>🌳</span><b>Ambiente</b><span>matas, mangues, rios, fauna, árvores vivas</span></div>
+      <div class="bar"><span>💰</span><b>Economia</b><span>empregos, energia, produção</span></div>
+      <div class="bar"><span>🤝</span><b>Sociedade</b><span>comunidades, água, bem-estar das pessoas</span></div>
+    </div>
+    <p>Embaixo das barras aparecem a estação, o mês, o seu ano de gestão e quantas árvores vivas você já tem. Toque na estação para saber como está o tempo no Ceará.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>O seu trabalho</h2></div>
+    <ol class="steps">
+      <li><span><b>Pegue um processo</b> na mesa da sede da SEMA, em Fortaleza.</span></li>
+      <li><span><b>Faça a vistoria</b> no 📍 do local da obra. É opcional, mas fortalece o parecer e dá bônus.</span></li>
+      <li><span><b>Decida:</b> deferir, deferir com condicionantes, indeferir ou pedir mais estudos.</span></li>
+      <li><span><b>Assine o parecer</b> com o dedo, carimbe e envie.</span></li>
+      <li><span>Se a obra for liberada, <b>plante a compensação</b> com mudas nativas do bioma certo.</span></li>
+      <li><span><b>Cuide das mudas</b> até virarem árvores. Só aí a compensação está cumprida.</span></li>
+      <li><span>Depois de um tempo, <b>fiscalize</b>: a empresa está cumprindo o que você exigiu?</span></li>
+    </ol>
+    <p>Os primeiros 7 processos formam o seu primeiro ano. Depois disso, novos pedidos de licença chegam sem parar: loteamentos, postos, pousadas, linhas de energia, cerâmicas, fazendas de camarão e muito mais, em todas as regiões do estado.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>O Ceará muda com o calendário</h2></div>
+    <p>As estações do jogo seguem o mês de verdade. Jogar em março é diferente de jogar em novembro.</p>
+    <div class="season-strip" aria-label="Estações por mês">
+      <span class="p">jan</span><span class="c">fev</span><span class="c">mar</span><span class="c">abr</span><span class="c">mai</span><span class="t">jun</span><span class="t">jul</span><span class="s">ago</span><span class="s">set</span><span class="s">out</span><span class="s">nov</span><span class="s">dez</span>
+    </div>
+    <div class="legend-row">
+      <span><i style="background:var(--water-soft)"></i>quadra chuvosa: o sertão fica verde, a chuva rega as mudas</span>
+      <span><i style="background:var(--green-soft)"></i>fim das chuvas: hora de prevenir</span>
+      <span><i style="background:var(--fire-soft)"></i>B-R-O-BRÓ: seca, calor e queimadas</span>
+    </div>
+    <div class="pair">
+      <figure><img src="img/est-3.jpg" alt="Sertão Central verde e com chuva em março" loading="lazy"><figcaption>Quixadá em março.</figcaption></figure>
+      <figure><img src="img/est-11.jpg" alt="Sertão Central seco e sem folhas em novembro" loading="lazy"><figcaption>Quixadá em novembro, a mata branca.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>O que pode acontecer pelo estado</h2></div>
+
+    <div class="mech">
+      <div class="txt">
+        <h3>🔥 Queimadas</h3>
+        <ul class="dots">
+          <li>Na seca, focos de incêndio aparecem pelo sertão e pelas serras. A agenda pisca quando tem fogo.</li>
+          <li>Vá rápido: o fogo cresce, segue o vento e pode queimar as suas mudas.</li>
+          <li>Ao chegar, escolha como agir. A escolha certa traz a brigada mais depressa.</li>
+          <li>Depois, a perícia descobre a causa e você decide o encaminhamento.</li>
+          <li>A área queimada leva dias de verdade para se recuperar.</li>
+        </ul>
+      </div>
+      <figure><img src="img/brigada.jpg" alt="Marina e brigadistas combatendo fogo na Chapada do Araripe" loading="lazy"><figcaption>Combate ao fogo com a brigada na Chapada do Araripe.</figcaption></figure>
+    </div>
+
+    <div class="mech flip">
+      <div class="txt">
+        <h3>💧 Mudas com sede</h3>
+        <ul class="dots">
+          <li>Fora da quadra chuvosa, as mudas precisam de água.</li>
+          <li>Quando aparece a gotinha azul, é hora de regar. Muda amarronzada está murchando.</li>
+          <li>Muda que morre deixa a cova vazia, e é preciso replantar.</li>
+          <li>Depois que vira árvore, ela não precisa mais de rega e passa a contar como árvore viva.</li>
+        </ul>
+      </div>
+      <figure><img src="img/mudas.jpg" alt="Mudas com gotinhas azuis pedindo rega" loading="lazy"><figcaption>As gotinhas azuis mostram quem está com sede.</figcaption></figure>
+    </div>
+
+    <div class="mech">
+      <div class="txt">
+        <h3>📣 Ocorrências e fiscalização</h3>
+        <ul class="dots">
+          <li>Chegam chamados pelo mapa: óleo na praia, lixo no manguezal, denúncia de desmatamento, caranguejos na andada, comunidades querendo formar brigada, bicho silvestre na cidade.</li>
+          <li>Algumas ocorrências só acontecem em certas épocas do ano.</li>
+          <li>As licenças que você assinou voltam para fiscalização. Uma decisão apressada pode virar denúncia meses depois.</li>
+        </ul>
+      </div>
+      <figure><img src="img/oleo.jpg" alt="Manchas de óleo numa praia do litoral leste" loading="lazy"><figcaption>Óleo na praia: é preciso recolher com segurança.</figcaption></figure>
+    </div>
+
+    <div class="mech flip">
+      <div class="txt">
+        <h3>🗞️ Quando você volta</h3>
+        <p>O Ceará não para enquanto você está fora. Ao abrir o jogo de novo, um resumo conta o que aconteceu: as mudas que cresceram, alguma queimada, se a estação mudou e o que está esperando por você. A comunidade ajuda a cuidar das mudas, então ficar uns dias fora não faz você perder tudo.</p>
+      </div>
+      <figure class="phone"><img src="img/phone-fogo.jpg" alt="O jogo no celular com uma queimada e o botão A" loading="lazy"><figcaption style="text-align:center">O jogo no iPhone.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Sua carreira</h2></div>
+    <div class="mech">
+      <div class="txt">
+        <p>Cada ano de gestão termina com um Relatório Anual: seus indicadores, pareceres, árvores, queimadas e fiscalizações. Com o estado equilibrado, vem a promoção.</p>
+        <div class="career">
+          <span>Analista Ambiental</span><b>→</b><span>Analista Sênior</span><b>→</b><span>Coordenadora de Licenciamento</span><b>→</b><span>Diretora de Fiscalização</span><b>→</b><span>Secretária do Meio Ambiente</span>
+        </div>
+        <p>A cada ano os desafios crescem: obras maiores, fogo mais forte e empresas mais propensas a descumprir o combinado.</p>
+      </div>
+      <figure><img src="img/relatorio.jpg" alt="Relatório anual com indicadores e promoção" loading="lazy"><figcaption>O Relatório Anual.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Para jogar da melhor forma</h2></div>
+    <div class="tips">
+      <div class="tip"><h3>🔎 Vistorie antes de assinar</h3><p>A vistoria revela coisas que o processo não conta e deixa o parecer mais forte.</p></div>
+      <div class="tip"><h3>⚖️ Equilibre os três</h3><p>Nem sempre liberar é bom, nem sempre barrar é proteger. Pense em quem ganha e em quem paga a conta.</p></div>
+      <div class="tip"><h3>📏 Proporcionalidade</h3><p>Obra pequena não precisa do mesmo rigor de obra grande. Às vezes a melhor licença é a mais simples.</p></div>
+      <div class="tip"><h3>🌱 Bioma certo</h3><p>Compensação é com espécie nativa do lugar. Exótica bonita não conta e ainda tira pontos.</p></div>
+      <div class="tip"><h3>🔥 Fogo é prioridade</h3><p>Quando a agenda piscar, largue o que estiver fazendo. Quanto antes você chega, menos queima.</p></div>
+      <div class="tip"><h3>💧 Ronda de rega na seca</h3><p>De agosto a dezembro, passe pelas áreas de plantio de tempos em tempos. Árvore viva é o que vale.</p></div>
+      <div class="tip"><h3>🧑‍🚒 Prevenir é melhor</h3><p>Ajudar comunidades a se prepararem diminui as queimadas na região delas.</p></div>
+      <div class="tip"><h3>💬 Converse com todo mundo</h3><p>Moradores, pesquisadores, bombeiros e a Profa. Iracema na UFC dão dicas e curiosidades do Ceará.</p></div>
+      <div class="tip"><h3>📋 Use a agenda</h3><p>Ela organiza tudo e leva você de viatura a cada tarefa.</p></div>
+      <div class="tip"><h3>🗓️ Volte em outra estação</h3><p>Em março o sertão está verde e cheio de água. Vale ver o mesmo lugar em épocas diferentes.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Bora cuidar do Ceará! 🌵💚</p>
+    <span>Feito com carinho para a Marina</span>
+  </footer>
+</div>
+
+</body>
+</html>
