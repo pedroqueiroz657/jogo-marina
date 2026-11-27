@@ -25,6 +25,7 @@
       <div class="stat" title="Economia"><span>💰</span><div class="bar"><i id="bar-eco"></i></div><b id="val-eco">50</b></div>
       <div class="stat" title="Sociedade"><span>🤝</span><div class="bar"><i id="bar-soc"></i></div><b id="val-soc">50</b></div>
       <button class="season" id="season" aria-label="Estação"><span id="seasonIcon">☀️</span><small id="seasonTxt"></small><span class="treesMini">🌳<b id="treeCount">0</b></span></button>
+      <button class="walletBtn" id="btnWallet" aria-label="Carteira e guarda-roupa">👛 <b id="walletVal">R$ 0</b><span>👗</span><kbd>V</kbd></button>
     </div>
     <div class="hudBtns">
       <button id="btnAgenda" class="round" aria-label="Agenda">📋<em id="agendaBadge" hidden>0</em><kbd>J</kbd></button>
@@ -42,13 +43,14 @@
       <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ou <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> andar</div>
       <div><kbd>Shift</kbd> correr</div>
       <div><kbd>Espaço</kbd> / <kbd>E</kbd> interagir</div>
-      <div><kbd>J</kbd> agenda • <kbd>M</kbd> mapa • <kbd>G</kbd> menu • <kbd>Esc</kbd> fechar</div>
+      <div><kbd>J</kbd> agenda • <kbd>M</kbd> mapa • <kbd>V</kbd> visual • <kbd>G</kbd> menu • <kbd>Esc</kbd> fechar</div>
       <div id="keyTarget"></div>
     </div>
   </div>
 
   <div id="regionToast"></div>
   <div id="toast"></div>
+  <div id="objetivo" hidden></div>
   <div id="fade"></div>
 
   <!-- diálogo -->
@@ -67,6 +69,7 @@
       <h1>Marina</h1>
       <h2>Guardiã do Ceará</h2>
       <p>Analise processos de licenciamento, faça vistorias, assine pareceres e plante a compensação ambiental do sertão ao mar.</p>
+      <p id="saveWarn" class="saveWarn" hidden>⚠️ Encontrei um jogo salvo neste aparelho, mas não consegui abrir. <b>Não comece um jogo novo</b>: mande um print para o Pedro. (Se começar mesmo assim, o save antigo fica guardado numa cópia.)</p>
       <div class="titleBtns">
         <button id="btnContinue" class="btn" hidden>Continuar</button>
         <button id="btnStart" class="btn">Começar</button>
@@ -80,6 +83,9 @@
   <script src="js/data-mundo.js"></script>
   <script src="js/sprites.js"></script>
   <script src="js/mundo.js"></script>
+  <script src="js/loja.js"></script>
+  <script src="js/lugares.js"></script>
+  <script src="js/missoes.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

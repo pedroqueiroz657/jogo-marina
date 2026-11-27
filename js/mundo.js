@@ -32,29 +32,56 @@ function inPlotArea(x, y, pad = 0) { return plotAreas.some(a => x >= a.x0 - pad 
 //  Estado novo / migração de saves antigos
 // ---------------------------------------------------------------------
 function newProcState() { return { status: 'pendente', choice: null, visited: false, planted: [], errors: 0, done: false, order: shuffle([0, 1, 2]) }; }
-function anoZerado() { return { dec: 0, mudas: 0, comp: 0, focos: 0, ha: 0, eventos: 0, fisc: 0 }; }
+function anoZerado() { return { dec: 0, mudas: 0, comp: 0, focos: 0, ha: 0, eventos: 0, fisc: 0, ganhos: 0, gastos: 0 }; }
+// Versão do formato do save. Ao mudar o formato: aumente aqui e acrescente um passo em migrate().
+const SAVE_V = 3;
 function mundoDefaults() {
   return {
-    v: 2, gen: [], genCount: 0, play: 0, year: 1, cargo: 0, ys: anoZerado(), hist: [],
+    v: SAVE_V, gen: [], genCount: 0, play: 0, year: 1, cargo: 0, ys: anoZerado(), hist: [],
     fires: [], burned: {}, events: [], followups: [], prev: {}, forest: [],
     lastSeen: Date.now(), season: estacaoId(), nextProcAt: 0, nextEventAt: 200, nextFireAt: 40,
     decTotal: 0, dead: 0, uid: 1, fogoTutorial: false, dicaRega: false,
+    // v3: salário e visual (js/loja.js)
+    carteira: 0, trab: 0, visual: visualPadrao(), roupas: roupasIniciais(), lojasVistas: [],
+    dicaSalario: false, dicaBrecho: false, novidadeSalario: 0,
+    postais: [],   // cartões-postais dos lugares visitados (js/lugares.js)
+    missoes: {}, avisoPacoti: false,   // missões especiais (js/missoes.js)
   };
 }
+// Recebe qualquer save antigo e devolve no formato atual, sem perder nada.
+// Regra: só ACRESCENTAR campos e converter; nunca apagar progresso.
 function migrate(s) {
+  const from = s.v || 1;   // versão ANTES de preencher os campos novos
   const d = mundoDefaults();
   for (const k in d) if (s[k] === undefined) s[k] = d[k];
   for (const k in d.ys) if (s.ys[k] === undefined) s.ys[k] = 0;
   for (const p of PROCESSOS) if (!s.procs[p.id]) s.procs[p.id] = newProcState();
-  if (!s.v || s.v < 2) {
-    for (const id in s.procs) {
-      const st = s.procs[id];
-      if (st.status !== 'pendente') s.decTotal++;
-      for (const pl of st.planted) if (pl && pl.g === undefined) { pl.g = Math.min(400, (Date.now() - pl.t) / 1000 * 2); pl.w = 1; pl.d = 0; }
-    }
+  if (from < 2) {
+    for (const id in s.procs) if (s.procs[id].status !== 'pendente') s.decTotal++;
     if (s.ended) { s.year = 2; s.ys = anoZerado(); }
-    s.v = 2;
   }
+  // mudas sem dados de crescimento (vale também para saves que pularam o passo da v2)
+  for (const id in s.procs) for (const pl of s.procs[id].planted || []) if (pl && pl.g === undefined) { pl.g = Math.min(400, (Date.now() - (pl.t || Date.now())) / 1000 * 2); pl.w = 1; pl.d = 0; }
+  if (from < 3) {
+    // v3: salário. Quem já jogava recebe os salários atrasados dos pareceres já assinados.
+    s.trab = s.decTotal % PARECERES_POR_SALARIO;
+    if (s.introDone) {
+      // acerto limitado a 2 salários, para sobrar o que conquistar comprando aos poucos
+      const atrasado = Math.min(2, Math.max(1, Math.floor(s.decTotal / PARECERES_POR_SALARIO))) * SALARIOS[Math.min(s.cargo, SALARIOS.length - 1)];
+      s.carteira += atrasado; s.novidadeSalario = atrasado;
+    }
+  }
+  // visual sempre válido (mesmo se um item sair do catálogo no futuro)
+  if (!s.visual || typeof s.visual !== 'object') s.visual = visualPadrao();
+  if (!Array.isArray(s.roupas)) s.roupas = roupasIniciais();
+  for (const id of roupasIniciais()) if (!s.roupas.includes(id)) s.roupas.push(id);
+  const vp = visualPadrao();
+  for (const slot in SLOTS) {
+    const it = itemById(s.visual[slot]);
+    if (!it || it.slot !== slot || !s.roupas.includes(it.id)) s.visual[slot] = vp[slot];
+  }
+  if (!Number.isFinite(s.carteira)) s.carteira = 0;
+  s.v = SAVE_V;
   return s;
 }
 
@@ -342,6 +369,7 @@ function endFire(f, silent) {
   if (silent) return;
   if (!f.met) { toast(`🔥 O foco em ${reg.name} apagou sozinho depois de queimar ~${ha} ha. Ninguém da SEMA foi lá.`, 5000); return; }
   addStats({ soc: 2 });
+  diaria(DIARIA_FOGO, 'diária de campo');
   const cz = CAUSAS_FOGO[f.causa];
   queueSay([
     { who: 'sistema', text: `🔥 Fogo controlado em ${reg.name}! Área atingida: ~${ha} hectares. Você e a brigada apagaram ${f.apag} focos.` },
@@ -447,7 +475,7 @@ function openRelatorio() {
   const [title, txt] = classificar();
   const ys = S.ys, ano = S.year;
   let promo = '';
-  if (min >= 40 && avg >= 55 && S.cargo < CARGOS.length - 1) { S.cargo++; promo = `<div class="box ok">🎉 <b>Promoção!</b> Marina agora é <b>${CARGOS[S.cargo]}</b>.</div>`; }
+  if (min >= 40 && avg >= 55 && S.cargo < CARGOS.length - 1) { S.cargo++; promo = `<div class="box ok">🎉 <b>Promoção!</b> Marina agora é <b>${CARGOS[S.cargo]}</b>. Novo salário: <b>${fmtR(SALARIOS[S.cargo])}</b> 💸</div>`; }
   else if (S.cargo < CARGOS.length - 1) promo = `<div class="box warn">Para ser promovida: média dos indicadores ≥ 55 e nenhum abaixo de 40.</div>`;
   else promo = `<div class="box ok">👑 Marina está no topo da carreira: <b>${CARGOS[S.cargo]}</b>!</div>`;
   S.hist.push(Object.assign({ year: ano, amb: Math.round(amb), eco: Math.round(eco), soc: Math.round(soc), title, cargo: S.cargo }, ys));
@@ -528,6 +556,7 @@ function openMenu() {
   const h = Math.floor(S.play / 3600), mi = Math.floor(S.play % 3600 / 60);
   const est = estacao();
   const m = openModal(`<div class="mHead"><h2>⚙️ Marina • ${CARGOS[S.cargo]}</h2><button class="x" data-close>✕</button></div>
+    <div class="kv"><span>Carteira</span><b>👛 ${fmtR(S.carteira)} • salário ${fmtR(SALARIOS[S.cargo])}</b></div>
     <div class="kv"><span>Ano de gestão</span><b>${S.year} (${S.ys.dec} pareceres este ano)</b></div>
     <div class="kv"><span>Tempo de jogo</span><b>${h}h ${mi}min</b></div>
     <div class="kv"><span>Árvores vivas</span><b>${countVivas()} (${S.dead} mudas perdidas)</b></div>
@@ -536,8 +565,9 @@ function openMenu() {
     <h3>Backup</h3>
     <textarea id="bk" rows="3" placeholder="Cole aqui um código de backup para restaurar"></textarea>
     <div class="row"><button class="btn ghost" id="bkCopy">📋 Gerar código</button><button class="btn ghost" id="bkLoad">📥 Restaurar</button></div>
+    ${postaisHTML()}
     ${S.hist.length ? `<h3>Relatórios anteriores</h3>${S.hist.map(r => `<div class="task"><span class="ti">📊</span><div><div><b>Ano ${r.year}</b>: ${r.title}</div><small class="muted">🌳${r.amb} 💰${r.eco} 🤝${r.soc} • ${r.dec} pareceres • ${r.ha} ha queimados</small></div></div>`).join('')}` : ''}
-    <div class="row"><button class="btn ghost" id="season">${est.icon} Sobre a estação</button><button class="btn ghost danger" id="reset">🔄 Novo jogo</button></div>`);
+    <div class="row"><button class="btn ghost" id="visual">👗 Guarda-roupa</button><button class="btn ghost" id="season">${est.icon} Sobre a estação</button><button class="btn ghost danger" id="reset">🔄 Novo jogo</button></div>`);
   const ta = m.querySelector('#bk');
   m.querySelector('#bkCopy').onclick = () => {
     const c = codigoBackup(); ta.value = c; ta.select();
@@ -547,6 +577,8 @@ function openMenu() {
     try { S = lerBackup(ta.value); save(); closeModal(); startGame(false); toast('✅ Backup restaurado!'); } catch (e) { toast('❌ Código inválido'); }
   };
   m.querySelector('#season').onclick = openEstacao;
+  m.querySelector('#visual').onclick = openVisual;
+  const mem = m.querySelector('#memPacoti'); if (mem) mem.onclick = () => openMemoriaPacoti(false);
   let armed = false;
   m.querySelector('#reset').onclick = e => {
     if (!armed) { armed = true; e.target.textContent = 'Toque de novo para apagar tudo'; return; }
@@ -644,7 +676,7 @@ const variantCache = new Map();
 function spriteVariant(spr, kind) {
   let m = variantCache.get(spr); if (!m) { m = {}; variantCache.set(spr, m); }
   if (m[kind]) return m[kind];
-  const c = mkCanvas(spr.width, spr.height, g => g.drawImage(spr, 0, 0));
+  const c = mkCanvas(spr.width, spr.height, g => g.drawImage(spr, 0, 0)); c.hd = spr.hd;
   const g = c.getContext('2d'), id = g.getImageData(0, 0, c.width, c.height), d = id.data;
   for (let i = 0; i < d.length; i += 4) {
     if (!d[i + 3]) continue;
@@ -657,26 +689,42 @@ function spriteVariant(spr, kind) {
   m[kind] = c; return c;
 }
 let crewSpr = null;
+// mancha irregular (em vez de quadrado) cobrindo um tile, para fogo e cicatrizes
+function blob(x, y, col, r = 7) {
+  const h = hash2(x, y), X = x * TILE + 8, Y = y * TILE + 8;
+  disc(ctx, X - 3 + (h * 4 | 0), Y - 2, r - 1, col); disc(ctx, X + 3 - (h * 13 % 4 | 0), Y + 2, r - 1, col); disc(ctx, X, Y, r - 2, col);
+}
+let tintCv = null;
 function drawGroundMundo(tx0, ty0, tx1, ty1) {
-  for (const f of S.fires) for (const c of f.cells) {
-    const x = c.x * TILE, y = c.y * TILE;
-    ctx.fillStyle = 'rgba(50,25,10,0.5)'; ctx.fillRect(x, y, 16, 16);
-    ctx.fillStyle = `rgba(255,${(110 + Math.sin(time * 9 + c.x) * 40) | 0},30,0.35)`; ctx.fillRect(x, y, 16, 16);
-  }
   const id = estacaoId(), now = Date.now();
+  // cor da estação só na Caatinga, seguindo as bordas orgânicas do chão
   const tint = id === 'seca' ? 'rgba(175,140,105,0.30)' : id === 'chuvosa' ? 'rgba(70,165,60,0.50)' : id === 'preChuva' ? 'rgba(120,160,80,0.18)' : null;
+  if (tint && caatMask) {
+    const x0 = Math.max(0, tx0 * TILE), y0 = Math.max(0, ty0 * TILE), w = Math.min(W * TILE, (tx1 + 1) * TILE) - x0, h = Math.min(H * TILE, (ty1 + 1) * TILE) - y0;
+    if (w > 0 && h > 0) {
+      if (!tintCv) tintCv = document.createElement('canvas');
+      if (tintCv.width < w || tintCv.height < h) { tintCv.width = Math.max(w, tintCv.width); tintCv.height = Math.max(h, tintCv.height); }
+      const tg = tintCv.getContext('2d');
+      tg.globalCompositeOperation = 'copy'; tg.drawImage(caatMask, x0, y0, w, h, 0, 0, w, h);
+      tg.globalCompositeOperation = 'source-in'; tg.fillStyle = tint; tg.fillRect(0, 0, w, h);
+      tg.globalCompositeOperation = 'source-over';
+      ctx.drawImage(tintCv, 0, 0, w, h, x0, y0, w, h);
+    }
+  }
   for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) {
     if (x < 0 || y < 0 || x >= W || y >= H) continue;
-    const t = tiles[y * W + x];
-    if (tint && (t === T.CAAT || t === T.CAAT2)) { ctx.fillStyle = tint; ctx.fillRect(x * TILE, y * TILE, TILE, TILE); }
     const sc = scarStage(x, y, now);
     if (sc === 1) {
-      ctx.fillStyle = 'rgba(38,30,26,0.75)'; ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+      blob(x, y, 'rgba(38,30,26,0.55)');
       ctx.fillStyle = '#8a8078'; const h = hash2(x, y); ctx.fillRect(x * TILE + (h * 13 | 0), y * TILE + (h * 97 % 13 | 0), 2, 1); ctx.fillRect(x * TILE + (h * 41 % 14 | 0), y * TILE + (h * 7 % 14 | 0), 1, 1);
     } else if (sc === 2) {
-      ctx.fillStyle = 'rgba(80,66,50,0.38)'; ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+      blob(x, y, 'rgba(80,66,50,0.25)');
       ctx.fillStyle = '#7ac25a'; const h = hash2(x, y); ctx.fillRect(x * TILE + (h * 13 | 0), y * TILE + (h * 97 % 13 | 0), 1, 2); ctx.fillRect(x * TILE + (h * 41 % 14 | 0), y * TILE + (h * 7 % 14 | 0), 1, 2);
     }
+  }
+  for (const f of S.fires) for (const c of f.cells) {
+    blob(c.x, c.y, 'rgba(50,25,10,0.4)', 8);
+    blob(c.x, c.y, `rgba(255,${(110 + Math.sin(time * 9 + c.x) * 40) | 0},30,0.25)`, 7);
   }
 }
 function decoSprite(d) {
@@ -691,10 +739,10 @@ function plantDraw(pl) {
 }
 function mundoDraws(draws, inView) {
   for (const t of S.forest) {
-    const spr = plantedSprite(t.sp, 2);
-    if (!inView(t.x - 10, t.y - spr.height, 20, spr.height)) continue;
+    const spr = plantedSprite(t.sp, 2), w = dW(spr), h = dH(spr);
+    if (!inView(t.x - 10, t.y - h, 20, h)) continue;
     const sc = scarStage(Math.floor(t.x / TILE), Math.floor((t.y - 4) / TILE));
-    draws.push({ y: t.y, f: () => ctx.drawImage(sc === 1 ? spriteVariant(spr, 'burnt') : spr, Math.round(t.x - spr.width / 2), Math.round(t.y - spr.height + 2)) });
+    draws.push({ y: t.y, f: () => ctx.drawImage(sc === 1 ? spriteVariant(spr, 'burnt') : spr, Math.round(t.x - w / 2), Math.round(t.y - h + 2), w, h) });
   }
   for (const f of S.fires) for (const c of f.cells) {
     const x = c.x * TILE, y = c.y * TILE;
@@ -707,8 +755,8 @@ function mundoDraws(draws, inView) {
     } });
     if (Math.random() < 0.06) smoke.push({ x: x + 8, y: y + 2, vx: (Math.random() - 0.5) * 6, vy: -12 - Math.random() * 8, life: 2.2, w: 0 });
   }
-  if (!crewSpr) crewSpr = buildPerson({ skin: '#8a5a3a', hair: '#222', shirt: '#d8a020' });
-  for (const f of S.fires) for (const m of f.crew) draws.push({ y: m.y, f: () => { shadow(m.x, m.y); ctx.drawImage(crewSpr[m.moving ? Math.floor(time * 6) % 2 : 0], Math.round(m.x) - 8, Math.round(m.y) - 23); } });
+  if (!crewSpr) { const lk = { skin: '#8a5a3a', hair: '#222', shirt: '#d8a020', calca: '#3a3a3a', chapeu: { forma: 'bone', a: '#f2c230', b: '#c0392b', c: '#c0392b' } }; crewSpr = { parado: buildPerson(lk), andando: buildPerson(lk, true) }; }
+  for (const f of S.fires) for (const m of f.crew) draws.push({ y: m.y, f: () => { shadow(m.x, m.y); ctx.drawImage(m.moving ? crewSpr.andando[Math.floor(time * 6) % 2] : crewSpr.parado[0], Math.round(m.x) - 8, Math.round(m.y) - 23.5, 16, 24); } });
   // manchas de óleo / lixo
   for (const ev of S.events) {
     const E = EVENTOS[ev.kind];

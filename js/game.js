@@ -58,9 +58,10 @@ const RIVERS = {
   jaguaribe: [[60, 67], [58, 58], [61, 53], [62, 48], [64, 44], [67, 38], [70, 32], [72, 27], [73, 22]],
   coreau: [[15, 18], [14, 13], [13, 9], [12, 5]],
   banabuiu: [[37, 49], [44, 47.5], [50, 46.5], [56, 45.5], [63.5, 44.5]],
+  pacoti: [[62.5, 33], [63.5, 29], [65, 26], [65.6, 23], [65.9, 20.8], [66.2, 19]],   // Foz do Rio Pacoti (Aquiraz)
 };
 const ROADS = [
-  [[39, 16.5], [28, 11.5], [20, 10.5], [15, 9.5]],
+  [[33, 16.5], [28, 11.5], [20, 10.5], [15, 9.5]],
   [[55, 19.5], [58, 21.5], [66, 25], [71, 26]],
   [[71, 26], [69, 32], [67, 38], [66, 40], [64, 46], [63, 52]],
   [[47.5, 19.5], [47.5, 26], [47, 31], [46, 37], [46, 43]],
@@ -70,8 +71,8 @@ const ROADS = [
   [[25, 47], [30, 55], [36, 60], [40, 61]],
   [[46, 43], [56, 42], [66, 40]],
   // ruas de Fortaleza
-  [[39, 16.5], [55, 16.5]], [[39, 19.5], [55, 19.5]], [[39, 22.5], [55, 22.5]],
-  [[40.5, 14], [40.5, 23]], [[44.5, 13], [44.5, 23]], [[51.5, 15], [51.5, 23]],
+  [[33, 16.5], [55, 16.5]], [[33, 19.5], [55, 19.5]], [[33, 22.5], [55, 22.5]],
+  [[36.5, 13], [36.5, 23]], [[40.5, 14], [40.5, 23]], [[44.5, 13], [44.5, 23]], [[51.5, 15], [51.5, 23]],
 ];
 
 function stampLine(pts, r, fn) {
@@ -87,7 +88,7 @@ function stampLine(pts, r, fn) {
   }
 }
 
-let tiles, ground, DECOR, MARINA, decos = [], objects = [], colliders = [];
+let tiles, DECOR, MARINA, decos = [], objects = [], colliders = [];
 const plotAreas = [];
 
 function genMap() {
@@ -110,7 +111,7 @@ function genMap() {
       if (cy > 57.2 + n * 1.2) t = T.CHAPADA;
       else if (cy > 55.6 + n * 1.2 && cx > 26 && cx < 56) t = T.SERRA;
       if (d < 4.2 + n * 1.5 && (cx < 35 || cx > 58)) t = T.DUNE;
-      if (cx > 38.5 && cx < 55.5 && cy < 23.5) t = T.CITY;
+      if (cx > 32.5 && cx < 55.5 && cy < 23.5) t = T.CITY;   // Fortaleza (Centro a oeste)
       if (cx > 63 && cx < 80 && d >= 1.1 && d < 2.3) t = T.CLIFF;
       if (d < 1.2) t = T.SAND;
     }
@@ -121,8 +122,12 @@ function genMap() {
   stampLine(RIVERS.coco.slice(1), 1.9, (x, y) => { const t = get(x, y); if (t !== T.OCEAN) set(x, y, T.MANGUE); });
   stampLine(RIVERS.coreau.slice(1), 1.8, (x, y) => { const t = get(x, y); if (t !== T.OCEAN) set(x, y, T.MANGUE); });
   stampLine(RIVERS.jaguaribe.slice(6), 1.8, (x, y) => { const t = get(x, y); if (t !== T.OCEAN) set(x, y, T.MANGUE); });
+  // Foz do Rio Pacoti: mangue nas margens e bancos de areia onde ele encontra o mar
+  stampLine(RIVERS.pacoti.slice(1, 4), 1.8, (x, y) => { const t = get(x, y); if (t !== T.OCEAN) set(x, y, T.MANGUE); });
+  stampLine(RIVERS.pacoti.slice(3), 2.7, (x, y) => { const t = get(x, y); if (t !== T.OCEAN && t !== T.SHALLOW) set(x, y, T.SAND); });
   // rios e açude Castanhão
   for (const k in RIVERS) stampLine(RIVERS[k], 0.55, (x, y) => { if (get(x, y) !== T.OCEAN) set(x, y, T.RIVER); });
+  stampLine(RIVERS.pacoti.slice(3), 1.1, (x, y) => { if (get(x, y) !== T.OCEAN) set(x, y, T.RIVER); });   // foz mais larga, rasinha
   for (let y = 44; y < 56; y++) for (let x = 55; x < 68; x++) if (dist(x + 0.5, y + 0.5, 61.5, 50) < 3.3 + nz(x, y, 0.5) * 0.8) set(x, y, T.LAKE);
   // estradas (pontes sobre água)
   for (const r of ROADS) stampLine(r, 0.35, (x, y) => {
@@ -130,6 +135,8 @@ function genMap() {
     if (t === T.OTHER || t === T.OCEAN) return;
     set(x, y, (t === T.RIVER || t === T.LAKE || t === T.BRIDGE) ? T.BRIDGE : T.ROAD);
   });
+  // Ponte dos Ingleses (Praia de Iracema): píer onde dá para andar
+  for (let y = 5; y <= 10; y++) set(38, y, T.BRIDGE);
   // áreas de plantio sempre caminháveis
   const plotSrc = PROCESSOS.map(p => ({ id: p.id, x: p.plots.x, y: p.plots.y })).concat(Object.values(GEN_SPOTS));
   for (const p of plotSrc) {
@@ -150,48 +157,217 @@ function genMap() {
   placeObjects(get);
 }
 
+// O chão é desenhado com GS pixels de arte por unidade do mundo (o mesmo detalhe
+// da Marina), com bordas orgânicas entre os terrenos, textura e espuma na praia.
+// Colisão e regras continuam por tile (16x16): só o desenho é mais fino.
+// Para não travar a abertura no celular, o chão é gerado em pedaços (chunks) de
+// 8x8 tiles: primeiro os que aparecem na tela, o resto aos poucos em segundo plano.
+const GS = 2, GT = TILE * GS;                 // GT = pixels de arte por tile
+const CH = 8, CPX = CH * GT;                  // chunk: 8x8 tiles = 256x256 px de arte
+const IS_CRISP = new Uint8Array(32), IS_WATER = new Uint8Array(32);
+for (const t of [T.ROAD, T.CITY, T.BRIDGE]) IS_CRISP[t] = 1;
+for (const t of [T.OCEAN, T.SHALLOW, T.RIVER, T.LAKE]) IS_WATER[t] = 1;
+let caatMask = null;                          // máscara da Caatinga (1 px por unidade) para a cor da estação
+let chunks = [], chunkCols = 0, chunkRows = 0, groundGet = null, gPal = null, shore = null;
+const hexRGB = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const GPAL = { // 4 tons, do escuro ao claro
+  [T.OCEAN]: ['#1d68ab', '#2577bd', '#2c82c8', '#3a93d6'],
+  [T.SHALLOW]: ['#3a9fd2', '#47abd9', '#56b7e0', '#6cc6e8'],
+  [T.SAND]: ['#e3cb8a', '#ecd89c', '#f3e3ae', '#f9edc4'],
+  [T.DUNE]: ['#e8d49a', '#f1e0ad', '#f7eac0', '#fcf4d8'],
+  [T.CAAT]: ['#ad8c54', '#bc9b62', '#c8a86f', '#d4b680'],
+  [T.CAAT2]: ['#9f8f4e', '#ad9d5a', '#b9a966', '#c6b676'],
+  [T.SERRA]: ['#2a7034', '#34823d', '#3f9046', '#4fa253'],
+  [T.CHAPADA]: ['#74944a', '#82a252', '#8fb05c', '#9fc06a'],
+  [T.MANGUE]: ['#46583a', '#516446', '#5d704e', '#6a7c5a'],
+  [T.RIVER]: ['#2c7ebf', '#3689cb', '#4194d3', '#52a4de'],
+  [T.LAKE]: ['#2672b4', '#2f80c2', '#3a8ccd', '#4a9ad6'],
+  [T.ROAD]: ['#56524d', '#5e5a55', '#65615b', '#6e6a64'],
+  [T.CITY]: ['#aea698', '#bdb5a7', '#c8c0b2', '#d4ccbe'],
+  [T.PARK]: ['#549a48', '#5fa651', '#6ab15a', '#79bd66'],
+  [T.OTHER]: ['#958f7e', '#9f9988', '#a8a290', '#b0aa98'],
+  [T.AGRI]: ['#5f9636', '#6ea640', '#7ab24a', '#88be56'],
+  [T.CLIFF]: ['#b84f30', '#d26a44', '#e68e5c', '#f3c08a'],
+  [T.BRIDGE]: ['#6e5034', '#86663f', '#94744c', '#a48458'],
+};
+const PEBBLE = hexRGB('#8f877c'), PUDDLE = hexRGB('#3e6474');
+
 function renderGround(get) {
-  ground = mkCanvas(W * TILE, H * TILE, g => {
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const t = get(x, y), cols = TCOL[t];
-      const px = x * TILE, py = y * TILE;
-      g.fillStyle = cols[0]; g.fillRect(px, py, TILE, TILE);
-      const rng = mulberry32(x * 7919 + y * 104729);
-      for (let i = 0; i < 7; i++) { g.fillStyle = cols[1 + (i % 2)]; g.fillRect(px + Math.floor(rng() * 15), py + Math.floor(rng() * 15), 2, 1); }
-      if (t === T.DUNE) { g.fillStyle = '#e4d29a'; for (let i = 3; i < 16; i += 5) g.fillRect(px + 2 + (i % 3), py + i, 9, 1); }
-      if (t === T.AGRI) { g.fillStyle = '#5e9a36'; for (let i = 1; i < 16; i += 4) g.fillRect(px, py + i, 16, 2); }
-      if (t === T.CITY) { g.fillStyle = '#b4ac9c'; g.fillRect(px, py + 15, 16, 1); g.fillRect(px + 15, py, 1, 16); }
-      if (t === T.CLIFF) { g.fillStyle = '#f0a070'; g.fillRect(px, py + 4, 16, 2); g.fillStyle = '#b5523a'; g.fillRect(px, py + 11, 16, 2); }
-      if (t === T.MANGUE) { g.fillStyle = '#3f6a8a'; if (rng() < 0.5) g.fillRect(px + 3, py + 8, 6, 2); }
-      if (t === T.ROAD) {
-        g.fillStyle = '#6a6560'; g.fillRect(px, py, 16, 16);
-        const h = get(x - 1, y) === T.ROAD || get(x + 1, y) === T.ROAD;
-        g.fillStyle = '#e8d070'; if (h) g.fillRect(px + 4, py + 7, 6, 1); else g.fillRect(px + 7, py + 4, 1, 6);
-      }
-      if (t === T.BRIDGE) { g.fillStyle = '#6a4a2a'; for (let i = 0; i < 16; i += 4) g.fillRect(px, py + i, 16, 1); g.fillRect(px, py, 1, 16); g.fillRect(px + 15, py, 1, 16); }
-      if (t === T.OTHER) { g.fillStyle = 'rgba(40,40,30,0.18)'; g.fillRect(px, py, TILE, TILE); }
-      // espuma na praia
-      if (t === T.SAND || t === T.DUNE || t === T.CLIFF) {
-        g.fillStyle = '#ffffffaa';
-        if (get(x, y - 1) === T.SHALLOW) g.fillRect(px, py, 16, 2);
-        if (get(x + 1, y) === T.SHALLOW) g.fillRect(px + 14, py, 2, 16);
-      }
+  groundGet = get;
+  gPal = []; for (const k in GPAL) gPal[k] = GPAL[k].map(hexRGB);
+  // distância de cada tile de água até a terra (cor do mar: raso → fundo)
+  shore = new Float32Array(W * H); const q = [];
+  for (let i = 0; i < W * H; i++) if (IS_WATER[tiles[i]]) shore[i] = 99; else q.push(i);
+  for (let h = 0; h < q.length; h++) {
+    const i = q[h], x = i % W, y = (i / W) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const j = ny * W + nx; if (shore[j] > shore[i] + 1) { shore[j] = shore[i] + 1; q.push(j); }
     }
-    // divisa do Ceará com estados vizinhos
-    g.strokeStyle = 'rgba(120,40,40,0.55)'; g.lineWidth = 2; g.setLineDash([6, 4]);
-    g.beginPath();
-    BORDER.slice(2).concat([[3, 18], [2, 8]]).forEach(([x, y], i) => i ? g.lineTo(x * TILE, y * TILE) : g.moveTo(x * TILE, y * TILE));
-    g.stroke(); g.setLineDash([]);
-    g.fillStyle = 'rgba(80,60,40,0.55)'; g.font = 'bold 22px sans-serif';
-    g.fillText('PIAUÍ', 2 * TILE, 50 * TILE); g.fillText('PERNAMBUCO', 40 * TILE, 69 * TILE);
-    g.fillText('PARAÍBA', 72 * TILE, 58 * TILE); g.fillText('RIO GRANDE', 76 * TILE, 40 * TILE); g.fillText('DO NORTE', 77 * TILE, 42 * TILE);
-    g.fillStyle = 'rgba(255,255,255,0.55)'; g.font = 'italic bold 26px sans-serif'; g.fillText('Oceano Atlântico', 52 * TILE, 6 * TILE);
-  });
+  }
+  chunkCols = Math.ceil(W / CH); chunkRows = Math.ceil(H / CH);
+  chunks = new Array(chunkCols * chunkRows).fill(null);
+  caatMask = document.createElement('canvas'); caatMask.width = W * TILE; caatMask.height = H * TILE;
+  pregenGround();
+}
+function shoreAt(fx, fy) { // bilinear entre centros de tile
+  const x0 = clamp(Math.floor(fx), 0, W - 1), y0 = clamp(Math.floor(fy), 0, H - 1), x1 = Math.min(W - 1, x0 + 1), y1 = Math.min(H - 1, y0 + 1);
+  const u = clamp(fx - x0, 0, 1), v = clamp(fy - y0, 0, 1);
+  return (shore[y0 * W + x0] * (1 - u) + shore[y0 * W + x1] * u) * (1 - v) + (shore[y1 * W + x0] * (1 - u) + shore[y1 * W + x1] * u) * v;
+}
+// deslocamento das bordas e manchas de cor (ruído de baixa frequência, em grade de 4 px)
+function jitterAt(gx, gy) { // gx, gy em células de 4 px de arte
+  const wx = gx * 2, wy = gy * 2;
+  return [
+    (((noise(wx * 0.07, wy * 0.07) - 0.5) * 1.4 + (noise(wx * 0.2 + 9, wy * 0.2) - 0.5) * 0.6) * 18) | 0,
+    (((noise(wx * 0.07 + 41, wy * 0.07 + 13) - 0.5) * 1.4 + (noise(wx * 0.2, wy * 0.2 + 7) - 0.5) * 0.6) * 18) | 0,
+    noise(wx * 0.045, wy * 0.045) * 0.6 + noise(wx * 0.16 + 5, wy * 0.16 + 3) * 0.4,
+  ];
+}
+function tileAtArt(px, py) {
+  const tx = (px / GT) | 0, ty = (py / GT) | 0;
+  return (px < 0 || py < 0 || tx >= W || ty >= H) ? T.OTHER : tiles[ty * W + tx];
+}
+function buildChunk(ci, cj) {
+  const M = 8;                                           // margem para olhar vizinhos (espuma, sombra)
+  const X0 = ci * CPX, Y0 = cj * CPX, w = Math.min(CPX, W * GT - X0), h = Math.min(CPX, H * GT - Y0);
+  const LW = w + 2 * M, LH = h + 2 * M, LX = X0 - M, LY = Y0 - M;
+  // grade de ruído do pedaço
+  const gx0 = Math.floor(LX / 4), gy0 = Math.floor(LY / 4), gw = Math.ceil(LW / 4) + 2, gh = Math.ceil(LH / 4) + 2;
+  const JX = new Int8Array(gw * gh), JY = new Int8Array(gw * gh), MOT = new Float32Array(gw * gh);
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) { const [a, b, m] = jitterAt(gx0 + x, gy0 + y), i = y * gw + x; JX[i] = a; JY[i] = b; MOT[i] = m; }
+  const gi = (px, py) => (((py >> 2) - gy0) * gw + ((px >> 2) - gx0));
+  // 1) terreno de cada pixel (bordas orgânicas; estrada, cidade e ponte ficam retas)
+  const terr = new Uint8Array(LW * LH);
+  for (let ly = 0; ly < LH; ly++) for (let lx = 0; lx < LW; lx++) {
+    const px = LX + lx, py = LY + ly;
+    let t = tileAtArt(px, py);
+    if (!IS_CRISP[t]) { const k = gi(px, py), t2 = tileAtArt(px + JX[k], py + JY[k]); if (!IS_CRISP[t2]) t = t2; }
+    terr[ly * LW + lx] = t;
+  }
+  // 2) cor de cada pixel
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d'), img = g.createImageData(w, h), d = img.data;
+  for (let y = 0; y < h; y++) {
+    const py = Y0 + y, wy = py / GS;
+    for (let x = 0; x < w; x++) {
+      const px = X0 + x, li = (y + M) * LW + (x + M), t = terr[li], p = gPal[t];
+      const mot = MOT[gi(px, py)], grain = hash2(px, py);
+      let k = (mot * 0.7 + grain * 0.3) * 4 | 0; if (k > 3) k = 3;
+      let col = null;
+      switch (t) {
+        case T.OCEAN: { const sd = shoreAt(px / GT - 0.5, py / GT - 0.5); k = clamp(Math.round(3.3 - sd * 0.55 + (grain - 0.5) * 0.9 + (mot - 0.5)), 0, 3); if (grain > 0.995) k = 3; break; }
+        case T.SHALLOW: case T.RIVER: case T.LAKE: k = clamp(Math.round(1.5 + (mot - 0.5) * 2 + (grain - 0.5) * 0.8), 0, 3); break;
+        case T.SAND: case T.DUNE: {
+          const r = Math.sin(wy * 0.55 + mot * 14 + px * 0.02);
+          k = r > 0.88 ? 3 : r < -0.92 ? 0 : (grain > 0.5 ? 2 : 1);
+          if (t === T.SAND && grain > 0.992) col = PEBBLE;
+          break;
+        }
+        case T.CLIFF: { const band = (((py + mot * 26) / 7) | 0) % 5; k = [3, 1, 2, 0, 2][band]; if (grain > 0.97) k = Math.max(0, k - 1); break; }
+        case T.BRIDGE: k = (py % 10 === 0) ? 0 : (py % 10 === 1 ? 1 : (grain > 0.8 ? 3 : 2)); break;
+        case T.ROAD: k = grain < 0.12 ? 0 : grain > 0.93 ? 3 : (grain > 0.55 ? 2 : 1); break;
+        case T.CITY: k = (px % 16 === 0 || py % 16 === 0) ? 0 : (((px >> 4) + (py >> 4)) % 2 ? 2 : 3) - (grain > 0.9 ? 1 : 0); break;
+        case T.AGRI: if (py % 12 < 3) k = 0; else if (grain > 0.94) k = 3; break;
+        case T.CAAT: case T.CAAT2: if (grain > 0.988) col = PEBBLE; else if (grain < 0.025) k = 3; else if (grain > 0.965) k = 0; break;
+        case T.MANGUE: if (noise(px * 0.11, py * 0.11) < 0.12 && grain > 0.25) col = PUDDLE; else if (grain > 0.95) k = 0; break;
+        case T.SERRA: case T.PARK: case T.CHAPADA: if (grain > 0.955) k = 0; else if (grain < 0.03) k = 3; break;
+      }
+      // sombra da mata na borda de baixo (dá volume à serra)
+      if (t !== T.SERRA && !IS_WATER[t] && terr[li - 4 * LW] === T.SERRA) k = Math.max(0, k - 1);
+      col = col || p[k];
+      // beira d'água: espuma branca no mar e areia molhada na terra
+      if (t !== T.BRIDGE && t !== T.ROAD && t !== T.CITY) {
+        const wt = IS_WATER[t];
+        let near = 0;
+        for (let r = 1; r <= 4 && !near; r++) {
+          const a = terr[li + r], b = terr[li - r], c = terr[li + r * LW], e = terr[li - r * LW];
+          if ((a !== T.BRIDGE && IS_WATER[a] !== wt) || (b !== T.BRIDGE && IS_WATER[b] !== wt) || (c !== T.BRIDGE && IS_WATER[c] !== wt) || (e !== T.BRIDGE && IS_WATER[e] !== wt)) near = r;
+        }
+        if (near) {
+          if (wt && (t === T.OCEAN || t === T.SHALLOW)) { const a = near <= 2 ? 0.75 : (hash2(px * 3, py * 7) > 0.45 ? 0.4 : 0); col = [col[0] + (255 - col[0]) * a, col[1] + (255 - col[1]) * a, col[2] + (255 - col[2]) * a]; }
+          else if (!wt && near <= 3 && (t === T.SAND || t === T.DUNE || t === T.CLIFF || t === T.MANGUE)) col = [col[0] * 0.86, col[1] * 0.86, col[2] * 0.86];
+        }
+      }
+      const o = (y * w + x) * 4; d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  // 3) detalhes retos: meio-fio, faixa da estrada, guarda-corpo das pontes, canteiros
+  const get = groundGet, isRoad = (x, y) => { const t = get(x, y); return t === T.ROAD || t === T.BRIDGE; };
+  g.save(); g.translate(-X0, -Y0);
+  for (let y = cj * CH - 1; y <= cj * CH + CH; y++) for (let x = ci * CH - 1; x <= ci * CH + CH; x++) {
+    if (x < 0 || y < 0 || x >= W || y >= H) continue;
+    const t = tiles[y * W + x], X = x * GT, Y = y * GT;
+    if (t === T.ROAD) {
+      g.fillStyle = '#a8a39a';
+      if (!isRoad(x, y - 1)) g.fillRect(X, Y, GT, 2);
+      if (!isRoad(x, y + 1)) g.fillRect(X, Y + GT - 2, GT, 2);
+      if (!isRoad(x - 1, y)) g.fillRect(X, Y, 2, GT);
+      if (!isRoad(x + 1, y)) g.fillRect(X + GT - 2, Y, 2, GT);
+      const hz = isRoad(x - 1, y) || isRoad(x + 1, y), vt = isRoad(x, y - 1) || isRoad(x, y + 1);
+      g.fillStyle = '#e8cf62';
+      if (hz && !vt) g.fillRect(X + 6, Y + 15, 14, 2); else if (vt && !hz) g.fillRect(X + 15, Y + 6, 2, 14);
+    } else if (t === T.BRIDGE) {
+      g.fillStyle = '#4a3420';
+      const hz = get(x - 1, y) === T.BRIDGE || get(x + 1, y) === T.BRIDGE || isRoad(x - 1, y) || isRoad(x + 1, y);
+      if (hz) { g.fillRect(X, Y, GT, 3); g.fillRect(X, Y + GT - 3, GT, 3); for (let i = 0; i < GT; i += 8) { g.fillRect(X + i, Y - 2, 2, 4); g.fillRect(X + i, Y + GT - 2, 2, 4); } }
+      else { g.fillRect(X, Y, 3, GT); g.fillRect(X + GT - 3, Y, 3, GT); for (let i = 0; i < GT; i += 8) { g.fillRect(X - 1, Y + i, 4, 2); g.fillRect(X + GT - 3, Y + i, 4, 2); } }
+    } else if (t === T.CITY && hash2(x * 13, y * 31) < 0.08) {
+      g.fillStyle = '#6aa84f'; g.fillRect(X + 4, Y + 4, 10, 10); g.fillStyle = '#4f8a3c'; g.fillRect(X + 4, Y + 12, 10, 2);
+    }
+  }
+  // divisa do Ceará com estados vizinhos e nomes (cada pedaço desenha a parte dele)
+  g.scale(GS, GS);
+  g.strokeStyle = 'rgba(120,40,40,0.55)'; g.lineWidth = 2; g.setLineDash([6, 4]);
+  g.beginPath();
+  BORDER.slice(2).concat([[3, 18], [2, 8]]).forEach(([x, y], i) => i ? g.lineTo(x * TILE, y * TILE) : g.moveTo(x * TILE, y * TILE));
+  g.stroke(); g.setLineDash([]);
+  g.fillStyle = 'rgba(80,60,40,0.55)'; g.font = 'bold 22px sans-serif';
+  g.fillText('PIAUÍ', 2 * TILE, 50 * TILE); g.fillText('PERNAMBUCO', 40 * TILE, 69 * TILE);
+  g.fillText('PARAÍBA', 72 * TILE, 58 * TILE); g.fillText('RIO GRANDE', 76 * TILE, 40 * TILE); g.fillText('DO NORTE', 77 * TILE, 42 * TILE);
+  g.fillStyle = 'rgba(255,255,255,0.55)'; g.font = 'italic bold 26px sans-serif'; g.fillText('Oceano Atlântico', 52 * TILE, 6 * TILE);
+  g.restore();
+  // máscara da Caatinga deste pedaço (1 px por unidade do mundo)
+  const mw = w / GS, mh = h / GS, mg = caatMask.getContext('2d'), mi = mg.createImageData(mw, mh), md = mi.data;
+  for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) {
+    const t = terr[(y * GS + M) * LW + x * GS + M];
+    if (t === T.CAAT || t === T.CAAT2) md[(y * mw + x) * 4 + 3] = 255;
+  }
+  mg.putImageData(mi, X0 / GS, Y0 / GS);
+  return cv;
+}
+function groundChunk(ci, cj) {
+  const i = cj * chunkCols + ci;
+  return chunks[i] || (chunks[i] = buildChunk(ci, cj));
+}
+// desenha o chão visível (gera na hora os pedaços que ainda faltam)
+function drawGround(x0, y0, x1, y1) {
+  const span = CH * TILE;
+  for (let cj = Math.max(0, Math.floor(y0 / span)); cj <= Math.min(chunkRows - 1, Math.floor(y1 / span)); cj++)
+    for (let ci = Math.max(0, Math.floor(x0 / span)); ci <= Math.min(chunkCols - 1, Math.floor(x1 / span)); ci++) {
+      const c = groundChunk(ci, cj);
+      ctx.drawImage(c, ci * span, cj * span, c.width / GS, c.height / GS);
+    }
+}
+// gera o resto do chão aos poucos, sem travar (perto da Marina primeiro)
+let pregenT = null;
+function pregenGround() {
+  clearTimeout(pregenT);
+  const step = () => {
+    const px = (S ? P.x : 47 * TILE) / (CH * TILE), py = (S ? P.y : 18 * TILE) / (CH * TILE);
+    let best = -1, bd = 1e9;
+    for (let i = 0; i < chunks.length; i++) if (!chunks[i]) { const d = Math.hypot(i % chunkCols + 0.5 - px, ((i / chunkCols) | 0) + 0.5 - py); if (d < bd) { bd = d; best = i; } }
+    if (best < 0) return;
+    groundChunk(best % chunkCols, (best / chunkCols) | 0);
+    pregenT = setTimeout(step, 30);
+  };
+  pregenT = setTimeout(step, 30);
 }
 
 function isBlockedTile(tx, ty) {
   if (tx < 0 || ty < 0 || tx >= W || ty >= H) return true;
-  return SOLID.has(tiles[ty * W + tx]);
+  return SOLID.has(tiles[ty * W + tx]) && !aguaLiberada(tx, ty);   // rio raso liberado na missão especial
 }
 function tileAt(px, py) { const tx = Math.floor(px / TILE), ty = Math.floor(py / TILE); return (tx < 0 || ty < 0 || tx >= W || ty >= H) ? T.OTHER : tiles[ty * W + tx]; }
 
@@ -205,7 +381,8 @@ function placeObjects(get) {
   const isClear = (x, y) => !keepClear.some(k => dist(k.x, k.y, x, y) < k.r) && !inPlot(x, y);
 
   const addObj = (spr, x, y, col) => {
-    const o = { spr, x, y };
+    const k = spr && spr.hd ? spr.hd : 1;   // desenhos em alta resolução são exibidos na metade do tamanho
+    const o = { spr, x, y, w: spr ? spr.width / k : 0, h: spr ? spr.height / k : 0 };
     objects.push(o);
     if (col) colliders.push({ x0: x + col[0], y0: y + col[1], x1: x + col[2], y1: y + col[3] });
     return o;
@@ -213,10 +390,14 @@ function placeObjects(get) {
   // SEMA e UFC
   addObj(DECOR.sema, 45 * TILE, 18 * TILE - 48, [2, 30, 62, 46]);
   addObj(DECOR.ufc, 39 * TILE, 21 * TILE - 40, [2, 20, 54, 38]);
-  const excl = [[44, 13, 49, 18], [38, 17, 43, 21]];
+  // Mercado Central e Brechó do Benfica (ver LOJAS em loja.js)
+  addObj(DECOR.mercado, 41 * TILE, 16 * TILE - 44, [2, 26, 46, 42]);
+  addObj(DECOR.brecho, 45 * TILE + 1, 22 * TILE - 30, [1, 16, 29, 30]);
+  placeLugares(addObj);
+  const excl = [[44, 13, 49, 18], [38, 17, 43, 21], [41, 12, 43, 15], [45, 20, 46, 21]].concat(PONTOS_EXCL);
   // prédios de Fortaleza
   const used = new Set();
-  for (let by = 14; by <= 20; by += 3) for (let bx = 39; bx <= 54; bx++) {
+  for (let by = 14; by <= 20; by += 3) for (let bx = 33; bx <= 54; bx++) {
     const ok = [0, 1].every(dx => [0, 1].every(dy => {
       const t = get(bx + dx, by + dy);
       return t === T.CITY && !used.has((bx + dx) + ',' + (by + dy));
@@ -241,6 +422,7 @@ function placeObjects(get) {
   for (const [tx, ty] of turbines) {
     const t = get(Math.floor(tx), Math.floor(ty));
     if (SOLID.has(t) || t === T.ROAD || !isClear(tx, ty)) continue;
+    if (decals.some(d => tx * TILE > d.x - 14 && tx * TILE < d.x + d.w + 14 && ty * TILE > d.y - 6 && ty * TILE < d.y + d.h + 40)) continue;
     const o = addObj(null, tx * TILE, ty * TILE, [-3, -4, 3, 0]);
     o.turbine = true; o.phase = rng() * 6;
   }
@@ -270,9 +452,10 @@ function placeObjects(get) {
     else if (t === T.DUNE) { if (r < 0.015) spr = DECOR.coqueiro; else if (r < 0.04) spr = DECOR.tufo; }
     if (!spr) continue;
     const px = x * TILE + 3 + Math.floor(rng() * 10), py = y * TILE + 10 + Math.floor(rng() * 6);
-    if (colliderHit(px, py)) continue;
+    if (colliderHit(px, py) || decals.some(d => px > d.x - 6 && px < d.x + d.w + 6 && py > d.y - 2 && py < d.y + d.h + 14)) continue;
     const dry = DECOR.caatinga.includes(spr) || spr === DECOR.tufo;
-    decos.push({ spr, x: px - (spr.width >> 1), y: py - spr.height, by: py, tx: Math.floor(px / TILE), ty: Math.floor((py - 1) / TILE), dry });
+    const w = dW(spr), h = dH(spr);
+    decos.push({ spr, w, h, x: Math.round(px - w / 2), y: py - h, by: py, tx: Math.floor(px / TILE), ty: Math.floor((py - 1) / TILE), dry });
   }
 }
 
@@ -288,7 +471,24 @@ function newState() {
   return Object.assign({ stats: { amb: 50, eco: 50, soc: 50 }, procs, unlocked: 2, quizDone: false, introDone: false, trees: 0, ended: false, player: { x: 47 * TILE + 8, y: 19 * TILE + 10 }, talked: {} }, mundoDefaults());
 }
 function save() { try { if (!S) return; S.player = { x: P.x, y: P.y }; S.lastSeen = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* sem armazenamento */ } }
-function readSave(key) { try { const s = JSON.parse(localStorage.getItem(key)); return s && s.procs && s.stats ? migrate(s) : null; } catch (e) { return null; } }
+const PRE_KEY = 'marina-ceara-pre-v';   // + versão: cópia intocada do save de antes de cada atualização
+let saveErro = false;                  // havia um save, mas não deu para abrir
+function readSave(key) {
+  let raw = null;
+  try { raw = localStorage.getItem(key); } catch (e) { return null; }
+  if (!raw) return null;
+  try {
+    const s = JSON.parse(raw);
+    if (!s || !s.procs || !s.stats) throw new Error('save sem dados');
+    if ((s.v || 1) < SAVE_V) try { if (!localStorage.getItem(PRE_KEY + SAVE_V)) localStorage.setItem(PRE_KEY + SAVE_V, raw); } catch (e) { }
+    return migrate(s);
+  } catch (e) { console.error('Save ilegível em', key, e); saveErro = true; return null; }
+}
+// antes de um jogo novo por cima de um save que não abriu, guarda o antigo à parte
+function guardarSaveQuebrado() {
+  if (!saveErro) return;
+  try { const raw = localStorage.getItem(SAVE_KEY); if (raw) localStorage.setItem('marina-ceara-quebrado-' + Date.now(), raw); } catch (e) { }
+}
 // lê o save (com versão e migração); se estiver corrompido, usa a cópia de segurança
 function load() {
   const s = readSave(SAVE_KEY) || readSave(BAK_KEY);
@@ -338,6 +538,7 @@ addEventListener('keydown', e => {
   if (k === 'escape') closeModal();
   if (k === 'm' && !uiBusy()) openMap();
   if (k === 'g' && !uiBusy()) openMenu();
+  if (k === 'v' && !uiBusy()) openVisual();
   if ((k === 'j' || k === 'tab') && !uiBusy()) { e.preventDefault(); openAgenda(); }
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
@@ -394,6 +595,7 @@ const sfx = {
 let dialogQueue = [], dialogDone = null, typing = null;
 function portraitFor(who) {
   if (who === 'marina') return { svg: MARINA_PHOTO, name: 'Marina' };
+  if (who === 'pedro') return { svg: PEDRO_PHOTO, name: 'Pedro' };
   if (who === 'sistema') return { svg: null, name: 'SEMA • Ceará', icon: '🌵' };
   return { svg: npcPortraitSVG(who.look), name: who.name, role: who.role };
 }
@@ -421,7 +623,7 @@ function openModal(html, cls = '') {
   return m;
 }
 function closeModal() { $('#modalWrap').hidden = true; $('#modal').innerHTML = ''; }
-function uiBusy() { return !$('#dialog').hidden || !$('#modalWrap').hidden || !$('#title').hidden; }
+function uiBusy() { return !$('#dialog').hidden || !$('#modalWrap').hidden || !$('#title').hidden || $('#fade').classList.contains('cena'); }
 
 let toastT = null;
 function toast(msg, ms = 2600) {
@@ -442,6 +644,7 @@ function updateHUD() {
     $('#val-' + k).textContent = v;
   }
   $('#treeCount').textContent = countVivas();
+  $('#walletVal').textContent = fmtR(S.carteira);
   const est = estacao();
   $('#seasonIcon').textContent = est.icon;
   $('#seasonTxt').textContent = `${est.nome.split(' •')[0]} • ${MESES[mesAtual() - 1]} • Ano ${S.year}`;
@@ -492,6 +695,8 @@ function tasks() {
     }
   }
   tasksMundo(out);
+  lojaTasks(out);
+  missaoTasks(out);
   if (!S.quizDone) out.push({ icon: '🎓', txt: 'Conversar com a Profa. Iracema na UFC', where: 'Fortaleza', go: { x: 41 * TILE + 8, y: 22 * TILE + 8 }, done: false, optional: true });
   return out;
 }
@@ -608,6 +813,7 @@ function finishDecision(p, idx) {
   if (st.status === 'deferido') lines.push({ who: 'sistema', text: '⚖️ Daqui a um tempo, a SEMA vai fiscalizar se as condicionantes desta licença estão sendo cumpridas.' });
   say(lines, () => {
     if (S.unlocked > before) { toast('📥 Novo processo chegou na mesa da SEMA!'); }
+    contarParecer();
     updateHUD(); checkAno();
   });
 }
@@ -619,7 +825,7 @@ function doVistoria(p) {
     { who: 'marina', text: 'Vamos ver de perto como está a área…' },
     { who: 'sistema', text: '🔎 ' + p.vistoria },
     { who: 'marina', text: 'Anotado! Isso vai entrar no meu parecer lá na SEMA.' },
-  ], updateHUD);
+  ], () => { if (!['fortaleza', 'coco'].includes(p.region)) diaria(DIARIA_CAMPO, 'diária de campo'); updateHUD(); });
 }
 
 function openPlantio(p, i) {
@@ -674,7 +880,7 @@ function openQuiz(npc) {
 function openAgenda() {
   const ts = tasks();
   const m = openModal(`<div class="mHead"><h2>📋 Agenda da Marina</h2><button class="x" data-close>✕</button></div>
-    ${ts.map((t, i) => `<div class="task ${t.done ? 'done' : ''} ${t.urgent ? 'urgent' : ''}"><span class="ti">${t.done ? '✔️' : t.icon}</span><div><div>${t.txt}${t.optional ? ' <small class="muted">(opcional)</small>' : ''}</div><small class="muted">📍 ${t.where}</small></div>${!t.done && t.go ? `<button class="btn sm" data-go="${i}">Ir 🚙</button>` : ''}</div>`).join('')}
+    ${ts.map((t, i) => `<div class="task ${t.done ? 'done' : ''} ${t.urgent ? 'urgent' : ''} ${t.especial ? 'especial' : ''}"><span class="ti">${t.done ? '✔️' : t.icon}</span><div><div>${t.txt}${t.optional ? ' <small class="muted">(opcional)</small>' : ''}</div><small class="muted">📍 ${t.where}</small></div>${!t.done && t.go ? `<button class="btn sm" data-go="${i}">Ir 🚙</button>` : ''}</div>`).join('')}
     <div class="legend"><b>Indicadores:</b> 🌳 Ambiente • 💰 Economia • 🤝 Sociedade. Na economia ecológica, o objetivo é manter os três saudáveis ao mesmo tempo.</div>`);
   m.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => { const t = ts[+b.dataset.go]; closeModal(); travelTo(t.go.x, t.go.y); }));
 }
@@ -697,7 +903,7 @@ function openMap() {
   cv.width = W * 4; cv.height = H * 4;
   g.imageSmoothingEnabled = false; g.drawImage(miniCanvas, 0, 0);
   g.font = 'bold 9px sans-serif'; g.textAlign = 'center';
-  for (const r of REGIONS) { if (r.id === 'coco') continue; g.fillStyle = 'rgba(0,0,0,.55)'; g.fillText(r.name, r.x * 4 + 1, r.y * 4 + 1); g.fillStyle = '#fff'; g.fillText(r.name, r.x * 4, r.y * 4); }
+  for (const r of REGIONS) { if (r.id === 'coco' || r.id === 'pacoti') continue; g.fillStyle = 'rgba(0,0,0,.55)'; g.fillText(r.name, r.x * 4 + 1, r.y * 4 + 1); g.fillStyle = '#fff'; g.fillText(r.name, r.x * 4, r.y * 4); }
   const dot = (x, y, c, rr = 5) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, rr + 1.5, 0, 7); g.fill(); g.fillStyle = c; g.beginPath(); g.arc(x, y, rr, 0, 7); g.fill(); };
   for (const p of unlockedProcs()) {
     const st = S.procs[p.id];
@@ -705,6 +911,7 @@ function openMap() {
     const c = compOf(p); if (c && plantedCount(p) < c.n) dot(p.plots.x * 4 + 8, p.plots.y * 4, '#3fbf5a');
   }
   mundoMapMarkers(dot);
+  missaoMapMarkers(dot);
   if (unlockedProcs().some(p => S.procs[p.id].status === 'pendente')) dot(47 * 4, 18 * 4, '#2a6ad8');
   dot(P.x / TILE * 4, P.y / TILE * 4, '#ff4f9a', 6);
   cv.addEventListener('click', e => {
@@ -737,6 +944,9 @@ function interactables() {
     if (c && !st.archived) for (let i = 0; i < c.n; i++) if (!st.planted[i]) { const pp = plotPos(p, i); out.push({ x: pp.x, y: pp.y, label: 'Plantar', icon: '🌱', fn: () => openPlantio(p, i) }); }
   }
   mundoInteractables(out);
+  lojaInteractables(out);
+  lugaresInteractables(out);
+  missaoInteractables(out);
   return out;
 }
 function talkTo(n) {
@@ -820,6 +1030,7 @@ function update(dt) {
     if (Math.random() < 0.05) save();
   }
   if ($('#title').hidden) mundoUpdate(dt);
+  atualizarObjetivo();
   for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 120 * dt; p.life -= dt; if (p.life <= 0) parts.splice(i, 1); }
 }
 
@@ -833,7 +1044,7 @@ function render() {
   ctx.imageSmoothingEnabled = false;
   const sx = Math.max(0, Math.floor(camX)), sy = Math.max(0, Math.floor(camY));
   const sw = Math.min(W * TILE - sx, Math.ceil(vw) + 2), sh = Math.min(H * TILE - sy, Math.ceil(vh) + 2);
-  ctx.drawImage(ground, sx, sy, sw, sh, sx, sy, sw, sh);
+  drawGround(sx, sy, sx + sw, sy + sh);
 
   // brilho da água
   const tx0 = Math.floor(camX / TILE), ty0 = Math.floor(camY / TILE), tx1 = Math.ceil((camX + vw) / TILE), ty1 = Math.ceil((camY + vh) / TILE);
@@ -858,9 +1069,10 @@ function render() {
       const pp = plotPos(p, i);
       if (st.planted[i]) {
         const spr = plantDraw(st.planted[i]);
-        draws.push({ y: pp.y, f: () => ctx.drawImage(spr, Math.round(pp.x - spr.width / 2), Math.round(pp.y - spr.height + 2)) });
+        const w = dW(spr), h = dH(spr);
+        draws.push({ y: pp.y, f: () => ctx.drawImage(spr, Math.round(pp.x - w / 2), Math.round(pp.y - h + 2), w, h) });
       } else {
-        ctx.drawImage(DECOR.cova, pp.x - 6, pp.y - 6);
+        ctx.drawImage(DECOR.cova, pp.x - 6, pp.y - 6, 12, 8);
         const a = 0.35 + Math.sin(time * 4) * 0.25;
         ctx.strokeStyle = `rgba(120,255,140,${a})`; ctx.lineWidth = 1; ctx.strokeRect(pp.x - 7.5, pp.y - 7.5, 15, 11);
       }
@@ -871,23 +1083,26 @@ function render() {
   }
 
   const inView = (x, y, w, h) => x + w > camX - 8 && x < camX + vw + 8 && y + h > camY - 8 && y < camY + vh + 60;
-  for (const d of decos) if (inView(d.x, d.y, d.spr.width, d.spr.height)) draws.push({ y: d.by, f: () => ctx.drawImage(decoSprite(d), d.x, d.y) });
+  drawDecals(inView);
+  for (const d of decos) if (inView(d.x, d.y, d.w, d.h)) draws.push({ y: d.by, f: () => ctx.drawImage(decoSprite(d), d.x, d.y, d.w, d.h) });
   mundoDraws(draws, inView);
   for (const o of objects) {
     if (o.turbine) {
       if (!inView(o.x - 14, o.y - 48, 28, 48)) continue;
       draws.push({ y: o.y, f: () => drawTurbine(o) });
-    } else if (inView(o.x, o.y, o.spr.width, o.spr.height)) draws.push({ y: o.y + o.spr.height, f: () => ctx.drawImage(o.spr, o.x, o.y) });
+    } else if (inView(o.x, o.y, o.w, o.h)) draws.push({ y: o.y + o.h, f: () => ctx.drawImage(o.spr, o.x, o.y, o.w, o.h) });
   }
   for (const n of NPCS) {
     const x = n.x * TILE + 8, y = n.y * TILE + 12;
     if (!inView(x - 8, y - 24, 16, 24)) continue;
     if (!n.spr) n.spr = buildPerson(n.look);
-    draws.push({ y, f: () => { shadow(x, y); ctx.drawImage(n.spr[Math.floor(time * 1.6 + n.x) % 2], x - 8, y - 23); } });
+    draws.push({ y, f: () => { shadow(x, y); ctx.drawImage(n.spr[Math.floor(time * 1.6 + n.x) % 2], x - 8, y - 23.5, 16, 24); } });
   }
-  draws.push({ y: P.y, f: () => { shadow(P.x, P.y); ctx.drawImage(MARINA[P.dir][P.frame], Math.round(P.x * 2) / 2 - 8, Math.round(P.y * 2) / 2 - 23.5 - (P.moving && P.frame ? 0.5 : 0), 16, 24); } });
+  draws.push({ y: P.y, f: () => drawPessoa(MARINA[P.dir][P.frame], P.x, P.y, P.moving && P.frame ? 0.5 : 0) });
+  missaoDraws(draws, inView);
   draws.sort((a, b) => a.y - b.y);
   for (const d of draws) d.f();
+  drawAereos(inView);
 
   // marcadores de vistoria
   for (const p of unlockedProcs()) {
@@ -910,6 +1125,7 @@ function render() {
   // textos em espaço de tela
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawScreenMundo();
+  missaoTela();
   const toScreen = (wx, wy) => [(wx - camX) * SCALE, (wy - camY) * SCALE];
   ctx.textAlign = 'center'; ctx.font = '600 12px system-ui, sans-serif';
   if (nearNpc && (!target || !target.npc || target.npc !== nearNpc)) {
@@ -955,9 +1171,11 @@ function startGame(fresh) {
   const p = nearestWalkable(P.x, P.y); P.x = p.x; P.y = p.y;
   $('#title').hidden = true; $('#hud').hidden = false; $('#controls').hidden = false;
   msgQ.length = 0; rebuildFireSet();
-  if (S.introDone) mostrarAusencia(progressoAusencia());
+  vestirMarina();
+  if (S.introDone) { mostrarAusencia(progressoAusencia()); mostrarNovidadeSalario(); }
   else { S.lastSeen = Date.now(); S.season = estacaoId(); }
   updateHUD();
+  avisarMissao();
   if (!S.introDone) {
     S.introDone = true; save();
     const chefe = NPCS.find(n => n.id === 'chefe');
@@ -984,12 +1202,14 @@ function init() {
   $('#titlePortrait').innerHTML = MARINA_PHOTO;
   const saved = load();
   if (saved) { $('#btnContinue').hidden = false; $('#btnStart').textContent = 'Novo jogo'; $('#btnStart').classList.add('ghost'); }
-  $('#btnStart').onclick = () => { unlockAudio(); if (saved && !confirmNew()) return; S = newState(); startGame(false); };
+  else if (saveErro) { $('#saveWarn').hidden = false; $('#btnStart').textContent = 'Novo jogo'; $('#btnStart').classList.add('ghost'); }
+  $('#btnStart').onclick = () => { unlockAudio(); if ((saved || saveErro) && !confirmNew()) return; guardarSaveQuebrado(); S = newState(); startGame(false); };
   $('#btnContinue').onclick = () => { unlockAudio(); S = saved; startGame(false); };
   $('#btnAgenda').onclick = () => { if (!uiBusy()) openAgenda(); };
   $('#btnMap').onclick = () => { if (!uiBusy()) openMap(); };
   $('#btnMenu').onclick = () => { if (!uiBusy()) openMenu(); };
   $('#season').onclick = () => { if (!uiBusy()) openEstacao(); };
+  $('#btnWallet').onclick = () => { if (!uiBusy()) openVisual(); };
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { }
   addEventListener('visibilitychange', () => { if (document.hidden) save(); });
   addEventListener('pagehide', save);

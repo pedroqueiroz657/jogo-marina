@@ -5,8 +5,9 @@
 // =====================================================================
 
 const REGIONS = [
-  { id: 'fortaleza', name: 'Fortaleza', sub: 'Capital • sede da SEMA', x: 47, y: 18, r: 7 },
+  { id: 'fortaleza', name: 'Fortaleza', sub: 'Capital • sede da SEMA', x: 46, y: 18, r: 10 },
   { id: 'coco', name: 'Parque Estadual do Cocó', sub: 'Manguezal urbano', x: 56, y: 19, r: 4 },
+  { id: 'pacoti', name: 'Foz do Rio Pacoti', sub: 'Aquiraz • APA do Rio Pacoti', x: 66, y: 22, r: 3 },
   { id: 'camocim', name: 'Litoral Oeste', sub: 'Camocim • Jericoacoara', x: 16, y: 9, r: 7 },
   { id: 'ibiapaba', name: 'Serra da Ibiapaba', sub: 'Ubajara • Tianguá', x: 10, y: 22, r: 6 },
   { id: 'aracati', name: 'Litoral Leste', sub: 'Aracati • Canoa Quebrada', x: 71, y: 26, r: 6 },
@@ -227,13 +228,13 @@ const PROCESSOS = [
 // NPCs: personagens espalhados pelo mapa com dicas e curiosidades
 // ---------------------------------------------------------------------
 const NPCS = [
-  { id: 'chefe', name: 'Dona Socorro', role: 'Coordenadora na SEMA', x: 45, y: 19, look: { skin: '#a86b4a', hair: '#cfcfcf', shirt: '#2a7a5a' },
+  { id: 'chefe', name: 'Dona Socorro', role: 'Coordenadora na SEMA', x: 45, y: 19, look: { skin: '#a86b4a', hair: '#cfcfcf', shirt: '#2a7a5a', fem: true, estilo: 'coque', calca: '#3a3e4a', oculos: 'oculosGrau' },
     lines: [
       'Marina! Que bom te ver. Os processos estão na mesa da sede da SEMA. É só ir até a porta.',
       'Faça vistorias nos locais (os 📍 no mapa) antes de assinar. Parecer bem fundamentado vale ouro.',
       'Se a obra for liberada, a compensação ambiental é com você: plante as mudas nativas certas no lugar indicado.',
     ] },
-  { id: 'prof', name: 'Profa. Iracema', role: 'Professora de Economia Ecológica • UFC', x: 41, y: 21, look: { skin: '#7a4b32', hair: '#222', shirt: '#7a3b2a' },
+  { id: 'prof', name: 'Profa. Iracema', role: 'Professora de Economia Ecológica • UFC', x: 41, y: 21, look: { skin: '#7a4b32', hair: '#222', shirt: '#7a3b2a', fem: true, estilo: 'solto', baixo: 'saia', calca: '#2a2a3a' },
     quiz: {
       q: 'Para a economia ecológica, a economia é…',
       a: ['um subsistema dentro da biosfera, limitada por ela', 'um sistema isolado que cresce sem limites', 'independente dos recursos naturais'],
@@ -245,52 +246,52 @@ const NPCS = [
       'Marina, lembra da aula? Capital natural não é só “recurso”. Mangue, nascente e floresta prestam serviços ecossistêmicos que não aparecem no PIB.',
       'Georgescu-Roegen mostrou que a economia segue a lei da entropia: toda produção degrada energia e matéria.',
     ] },
-  { id: 'aja', name: 'Kauã', role: 'Agente Jovem Ambiental', x: 53, y: 17, look: { skin: '#8a5a3a', hair: '#1a1a1a', shirt: '#3aa35a' },
+  { id: 'aja', name: 'Kauã', role: 'Agente Jovem Ambiental', x: 53, y: 17, look: { skin: '#8a5a3a', hair: '#1a1a1a', shirt: '#3aa35a', calca: '#4a6a98', sapato: '#f4f4f0', chapeu: 'bone' },
     lines: [
       'Oi, Marina! Sou do Programa Agente Jovem Ambiental. A gente faz educação ambiental nos bairros.',
       'Sabia que o caranguejo-uçá leva anos para crescer? No período de andada a captura é proibida.',
     ] },
-  { id: 'catador', name: 'Seu Francisco', role: 'Catador de recicláveis', x: 49, y: 22, look: { skin: '#6a4028', hair: '#444', shirt: '#c7772a' },
+  { id: 'catador', name: 'Seu Francisco', role: 'Catador de recicláveis', x: 49, y: 22, look: { skin: '#6a4028', hair: '#444', shirt: '#c7772a', calca: '#5a5048' },
     lines: [
       'Bom dia, doutora! O Auxílio Catador ajuda muito a gente que tira o lixo da cidade.',
       'Cada tonelada reciclada é menos lixo no mangue e no mar. Catador também é agente ambiental!',
     ] },
-  { id: 'pescador', name: 'Dona Raimunda', role: 'Pescadora artesanal', x: 21, y: 10, look: { skin: '#7a4a2e', hair: '#333', shirt: '#2a6aa8' },
+  { id: 'pescador', name: 'Dona Raimunda', role: 'Pescadora artesanal', x: 21, y: 10, look: { skin: '#7a4a2e', hair: '#333', shirt: '#2a6aa8', fem: true, estilo: 'coque', baixo: 'saia', calca: '#e0703a', chapeu: 'chapeuPalha' },
     lines: [
       'As lagoas aqui nas dunas são nossa água, minha filha. Se mexerem nas dunas, elas secam.',
       'Os ventos daqui são fortes, por isso as empresas de energia gostam tanto do nosso litoral.',
     ] },
-  { id: 'guia', name: 'Tiago', role: 'Guia de ecoturismo', x: 12, y: 24, look: { skin: '#c48c62', hair: '#5a3a22', shirt: '#4a8a3a' },
+  { id: 'guia', name: 'Tiago', role: 'Guia de ecoturismo', x: 12, y: 24, look: { skin: '#c48c62', hair: '#5a3a22', shirt: '#4a8a3a', calca: '#8a7a5a', sapato: '#3e2a1c', chapeu: 'bone' },
     lines: [
       'Bem-vinda à Ibiapaba! Aqui em Ubajara tem um Parque Nacional com gruta e teleférico.',
       'A serra é mais úmida porque segura as nuvens que vêm do litoral. Por isso é tão verde.',
     ] },
-  { id: 'baturite', name: 'Lia', role: 'Pesquisadora de aves', x: 49, y: 30, look: { skin: '#d9a57e', hair: '#7a3a1a', shirt: '#5a5aa8' },
+  { id: 'baturite', name: 'Lia', role: 'Pesquisadora de aves', x: 49, y: 30, look: { skin: '#d9a57e', hair: '#7a3a1a', shirt: '#5a5aa8', fem: true, estilo: 'rabo', calca: '#4a4e5a', oculos: 'oculosGrau' },
     lines: [
       'Psiu… escuta! É o periquito-cara-suja, que só existe em algumas serras do Ceará. Quase foi extinto.',
       'Ninhos artificiais nas árvores ajudaram a população a crescer. Conservação funciona!',
     ] },
-  { id: 'sertanejo', name: 'Seu Zé', role: 'Agricultor', x: 44, y: 41, look: { skin: '#7a4a2a', hair: '#ddd', shirt: '#b5a27a' },
+  { id: 'sertanejo', name: 'Seu Zé', role: 'Agricultor', x: 44, y: 41, look: { skin: '#7a4a2a', hair: '#ddd', shirt: '#b5a27a', calca: '#5a5048', chapeu: 'chapeuPalha' },
     lines: [
       'Os monólitos de Quixadá são do tempo dos dinossauros e mais velhos ainda, minha filha!',
       'Aqui no sertão a gente aprendeu a conviver com a seca: cisterna, palma, barragem subterrânea…',
     ] },
-  { id: 'vaqueiro', name: 'Seu Damião', role: 'Vaqueiro dos Inhamuns', x: 28, y: 45, look: { skin: '#8a5a3a', hair: '#3a2a1a', shirt: '#8a5a2a' },
+  { id: 'vaqueiro', name: 'Seu Damião', role: 'Vaqueiro dos Inhamuns', x: 28, y: 45, look: { skin: '#8a5a3a', hair: '#3a2a1a', shirt: '#8a5a2a', calca: '#5e3a20', sapato: '#5e3420', chapeu: 'chapeuCouro' },
     lines: [
       'Essa terra aqui foi muito desmatada pro gado. Tem lugar virando deserto, é a desertificação.',
       'Plantar sabiá e juazeiro segura o solo. Algaroba não, que essa toma conta de tudo!',
     ] },
-  { id: 'crato', name: 'Iara', role: 'Guia do Geopark Araripe', x: 38, y: 58, look: { skin: '#b07a52', hair: '#1a1a1a', shirt: '#c04a6a' },
+  { id: 'crato', name: 'Iara', role: 'Guia do Geopark Araripe', x: 38, y: 58, look: { skin: '#b07a52', hair: '#1a1a1a', shirt: '#c04a6a', fem: true, estilo: 'solto', calca: '#4a6a98' },
     lines: [
       'O Geopark Araripe foi o primeiro geoparque reconhecido pela UNESCO nas Américas!',
       'Aqui tem fósseis de peixes e pterossauros com mais de 100 milhões de anos.',
     ] },
-  { id: 'jaguaribe', name: 'Dona Fátima', role: 'Artesã da palha de carnaúba', x: 65, y: 42, look: { skin: '#9a6440', hair: '#2a2a2a', shirt: '#d8a53a' },
+  { id: 'jaguaribe', name: 'Dona Fátima', role: 'Artesã da palha de carnaúba', x: 65, y: 42, look: { skin: '#9a6440', hair: '#2a2a2a', shirt: '#d8a53a', fem: true, estilo: 'coque', baixo: 'saia', calca: '#7a4a8a', chapeu: 'chapeuPalha' },
     lines: [
       'Da carnaúba tudo se aproveita: palha, cera, madeira, fruto. Por isso chamam de árvore da vida.',
       'O Castanhão é o maior açude do Ceará. Guarda a água de muita gente.',
     ] },
-  { id: 'aracati', name: 'Biel', role: 'Jangadeiro', x: 74, y: 27, look: { skin: '#6a3e24', hair: '#111', shirt: '#e2e2e2' },
+  { id: 'aracati', name: 'Biel', role: 'Jangadeiro', x: 74, y: 27, look: { skin: '#6a3e24', hair: '#111', shirt: '#e2e2e2', calca: '#2a5ba8', baixo: 'short', sapato: '#6a4a2a', oculos: 'oculosSol' },
     lines: [
       'O peixe-boi-marinho aparece aqui pelo litoral leste. Bicho manso, mas ameaçado.',
       'Se o esgoto do resort cair na praia, adeus turismo e adeus pescaria.',

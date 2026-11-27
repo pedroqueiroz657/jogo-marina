@@ -8,6 +8,7 @@ Jogo educativo para navegador (funciona no iPhone e no computador) sobre licenci
 - **📋 Agenda:** lista de tarefas com botão "Ir 🚙"
 - **🗺️ Mapa:** viajar entre as regiões do Ceará (tecla M)
 
+- **👛 Carteira / 👗 guarda-roupa:** trocar de visual (tecla V)
 - **⚙️ Menu:** backup do progresso, relatórios anteriores, estação, novo jogo (tecla G)
 
 Fluxo: pegar processo na SEMA → (opcional) vistoria no 📍 → escolher a conclusão → assinar o parecer com o dedo → se a obra for liberada, plantar as mudas **nativas** certas nas covas da compensação e cuidar delas até virarem árvores.
@@ -20,12 +21,17 @@ Fluxo: pegar processo na SEMA → (opcional) vistoria no 📍 → escolher a con
 - **Mudas:** precisam de rega fora da quadra chuvosa; morrem de sede ou no fogo e a cova reabre. A compensação só é cumprida quando todas viram árvores (taxa de sobrevivência).
 - **Condicionantes que voltam:** licenças concedidas são fiscalizadas depois; decisões ruins viram denúncias.
 - **Ocorrências:** óleo na praia, lixo no mangue, desmatamento, andada do caranguejo, brigada comunitária, fauna na cidade.
+- **Salário e visual:** a cada 2 pareceres cai um salário (R$ 3.500 a R$ 13.000, conforme o cargo), mais diárias de campo por vistoria fora de Fortaleza e combate a queimada. O dinheiro compra roupas, artesanato e penteados no **Mercado Central** e no **Brechó do Benfica** (cada compra lá dá +1 🌳), em Fortaleza. Catálogo e valores em `js/loja.js`.
+- **Lugares reais e cartões-postais:** Catedral, Theatro José de Alencar, Dragão do Mar, Praça do Ferreira, Ponte dos Ingleses (dá para andar nela), Iracema, jangadas e Farol do Mucuripe em Fortaleza; Pedra Furada, teleférico de Ubajara, falésias de Canoa Quebrada, Galinha Choca, Castanhão e Padre Cícero no interior. Cada visita mostra curiosidades reais e guarda um cartão-postal (menu ⚙️). Lista em `js/lugares.js`.
+- **Missões especiais (memórias da vida real):** a primeira, "Um dia no Rio Pacoti", leva a Marina com o Pedro de Fortaleza até a Foz do Rio Pacoti (Aquiraz): banho de rio, peixinhos, uvas e uma mensagem no fim. Completar abre o Álbum de memórias; só então os lugares reais viram lembranças. Código em `js/missoes.js`; a foto do retrato fica em `assets/pedro.jpg`.
 - **Enquanto ela está fora:** mudas crescem, a brigada apaga focos e pode ter havido uma queimada (perda limitada).
 
 Para testar outra estação: `http://localhost:8000/?mes=3` (1 a 12).
 
 ## Save
-- Salvo automaticamente no `localStorage` do aparelho (`marina-ceara-v1`), com versão (`v`) e migração de saves antigos em `migrate()`, mais uma cópia de segurança (`marina-ceara-bak`).
+- Salvo automaticamente no `localStorage` do aparelho (`marina-ceara-v1`), com versão (`v`, hoje 3, em `SAVE_V`) e migração de saves antigos em `migrate()`, mais uma cópia de segurança (`marina-ceara-bak`).
+- Na primeira vez que uma versão nova abre um save antigo, uma cópia intocada dele fica em `marina-ceara-pre-v<versão>`.
+- Se um save existir mas não abrir, a tela inicial avisa em vez de oferecer só "Começar"; se ela começar mesmo assim, o save antigo é guardado em `marina-ceara-quebrado-<data>`.
 - Menu ⚙️ → **Gerar código** cria um código de backup que restaura o jogo em qualquer aparelho.
 - No iPhone, instalar na Tela de Início evita que o Safari apague os dados após 7 dias sem uso.
 
@@ -36,8 +42,11 @@ css/style.css         visual da interface
 js/data.js            regiões, processos, espécies, NPCs (o conteúdo educativo fica aqui)
 js/data-mundo.js      biomas, modelos de processos, eventos, causas de queimada, estações, cargos
 js/mundo.js           estações, queimadas, mudas, processos gerados, fiscalização, ano, backup
-js/sprites.js         pixel art da Marina, árvores, prédios (tudo em código)
-js/game.js            mapa, movimento, diálogos, parecer, plantio, salvamento
+js/loja.js            salário, diárias, Mercado Central, Brechó, guarda-roupa (catálogo de roupas)
+js/sprites.js         pixel art em alta resolução: Marina, moradores, árvores, prédios (tudo em código)
+js/lugares.js         pontos turísticos reais, curiosidades e cartões-postais
+js/missoes.js         missões especiais (Rio Pacoti com o Pedro) e álbum de memórias
+js/game.js            mapa, chão em alta resolução (gerado em pedaços), movimento, diálogos, parecer, plantio, salvamento
 sw.js + manifest      permite instalar na tela de início e jogar offline
 tools/make-icons.js   gera os ícones PNG (node tools/make-icons.js)
 ```
@@ -59,4 +68,10 @@ Alternativa sem git: arraste a pasta em <https://app.netlify.com/drop>.
 ### No iPhone da Marina
 Abrir o link no **Safari** → botão Compartilhar → **Adicionar à Tela de Início**. O jogo abre em tela cheia, com ícone, como um app, e funciona offline.
 
-Ao publicar uma versão nova, aumente `CACHE` em `sw.js` (ex.: `marina-ceara-v4`).
+Ao publicar uma versão nova, aumente `CACHE` em `sw.js` (ex.: `marina-ceara-v6`) e inclua arquivos novos na lista `FILES`.
+
+### Atualizar sem perder o save
+1. Nunca mudar a chave `marina-ceara-v1` nem o endereço do jogo (nome do repositório): o `localStorage` é por endereço.
+2. Campo novo no save: colocar em `mundoDefaults()`. Conversão de formato: aumentar `SAVE_V` e acrescentar um passo `if (from < N)` em `migrate()`.
+3. Antes de publicar, testar abrindo um save da versão anterior.
+4. Por garantia, pedir um código de backup (⚙️ → Gerar código) antes de publicar.
